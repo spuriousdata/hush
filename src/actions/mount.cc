@@ -1,369 +1,218 @@
 #define FUSE_USE_VERSION 26
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#include <iostream>
+#include <string>
 
-#ifdef linux
-/* For pread()/pwrite()/utimensat() */
-#define _XOPEN_SOURCE 700
-#endif
-
-#include <fuse.h>
+#include <fuse_lowlevel.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <dirent.h>
 #include <errno.h>
-#include <sys/time.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <assert.h>
 
 #include "utils/optparse.h"
+#include "mount.hh"
 
+extern std::string prgname;
 
-//static void usage();
+static const char *hello_str = "Hello World!\n";
+static const char *hello_name = "hello";
 
-
-static void *hush_init(struct fuse_conn_info *conn)
+static void usage(void)
 {
-	fprintf(stderr, "Called hush_init\n");
-	return NULL;
+	std::cout << "Usage: " << prgname << " [opts] /mount/point" << std::endl
+	<< "'-f'  foreground" << std::endl
+	<< "'-d'  foreground, but keep the debug option " << std::endl
+	<< "'-s'  single threaded" << std::endl
+	<< "'-h'  help" << std::endl;
 }
 
-
-static int hush_getattr(const char *path, struct stat *stbuf)
+static int hello_stat(fuse_ino_t ino, struct stat *stbuf)
 {
-	int res;
+	stbuf->st_ino = ino;
+	switch (ino) {
+	case 1:
+		stbuf->st_mode = S_IFDIR | 0755;
+		stbuf->st_nlink = 2;
+		break;
 
-	res = lstat(path, stbuf);
-	if (res == -1)
-		return -errno;
+	case 2:
+		stbuf->st_mode = S_IFREG | 0444;
+		stbuf->st_nlink = 1;
+		stbuf->st_size = strlen(hello_str);
+		break;
 
-	return 0;
-}
-
-static int hush_access(const char *path, int mask)
-{
-	int res;
-
-	res = access(path, mask);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
-
-static int hush_readlink(const char *path, char *buf, size_t size)
-{
-	int res;
-
-	res = readlink(path, buf, size - 1);
-	if (res == -1)
-		return -errno;
-
-	buf[res] = '\0';
-	return 0;
-}
-
-
-static int hush_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-		       off_t offset, struct fuse_file_info *fi)
-{
-	DIR *dp;
-	struct dirent *de;
-
-	(void) offset;
-	(void) fi;
-
-	dp = opendir(path);
-	if (dp == NULL)
-		return -errno;
-
-	while ((de = readdir(dp)) != NULL) {
-		struct stat st;
-		memset(&st, 0, sizeof(st));
-		st.st_ino = de->d_ino;
-		st.st_mode = de->d_type << 12;
-		if (filler(buf, de->d_name, &st, 0))
-			break;
+	default:
+		return -1;
 	}
-
-	closedir(dp);
 	return 0;
 }
 
-static int hush_mknod(const char *path, mode_t mode, dev_t rdev)
+static void hush_getattr(fuse_req_t req, fuse_ino_t ino,
+							 struct fuse_file_info *fi)
 {
-	int res;
+	struct stat stbuf;
 
-	/* On Linux this could just be 'mknod(path, mode, rdev)' but this
-	   is more portable */
-	if (S_ISREG(mode)) {
-		res = open(path, O_CREAT | O_EXCL | O_WRONLY, mode);
-		if (res >= 0)
-			res = close(res);
-	} else if (S_ISFIFO(mode))
-		res = mkfifo(path, mode);
+	(void) fi;
+
+	memset(&stbuf, 0, sizeof(stbuf));
+	if (hello_stat(ino, &stbuf) == -1)
+		fuse_reply_err(req, ENOENT);
 	else
-		res = mknod(path, mode, rdev);
-	if (res == -1)
-		return -errno;
-
-	return 0;
+		fuse_reply_attr(req, &stbuf, 1.0);
 }
 
-static int hush_mkdir(const char *path, mode_t mode)
+static void hush_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
 {
-	int res;
+	struct fuse_entry_param e;
 
-	res = mkdir(path, mode);
-	if (res == -1)
-		return -errno;
+	if (parent != 1 || strcmp(name, hello_name) != 0)
+		fuse_reply_err(req, ENOENT);
+	else {
+		memset(&e, 0, sizeof(e));
+		e.ino = 2;
+		e.attr_timeout = 1.0;
+		e.entry_timeout = 1.0;
+		hello_stat(e.ino, &e.attr);
 
-	return 0;
+		fuse_reply_entry(req, &e);
+	}
 }
 
-static int hush_unlink(const char *path)
-{
-	int res;
-
-	res = unlink(path);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
-
-static int hush_rmdir(const char *path)
-{
-	int res;
-
-	res = rmdir(path);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
-
-static int hush_symlink(const char *from, const char *to)
-{
-	int res;
-
-	res = symlink(from, to);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
-
-static int hush_rename(const char *from, const char *to)
-{
-	int res;
-
-	res = rename(from, to);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
-
-static int hush_link(const char *from, const char *to)
-{
-	int res;
-
-	res = link(from, to);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
-
-static int hush_chmod(const char *path, mode_t mode)
-{
-	int res;
-
-	res = chmod(path, mode);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
-
-static int hush_chown(const char *path, uid_t uid, gid_t gid)
-{
-	int res;
-
-	res = lchown(path, uid, gid);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
-
-static int hush_truncate(const char *path, off_t size)
-{
-	int res;
-
-	res = truncate(path, size);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
-
-#ifdef HAVE_UTIMENSAT
-static int hush_utimens(const char *path, const struct timespec ts[2])
-{
-	int res;
-
-	/* don't use utime/utimes since they follow symlinks */
-	res = utimensat(0, path, ts, AT_SYMLINK_NOFOLLOW);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
-#endif
-
-static int hush_open(const char *path, struct fuse_file_info *fi)
-{
-	int res;
-
-	res = open(path, fi->flags);
-	if (res == -1)
-		return -errno;
-
-	close(res);
-	return 0;
-}
-
-static int hush_read(const char *path, char *buf, size_t size, off_t offset,
-		    struct fuse_file_info *fi)
-{
-	int fd;
-	int res;
-
-	(void) fi;
-	fd = open(path, O_RDONLY);
-	if (fd == -1)
-		return -errno;
-
-	res = pread(fd, buf, size, offset);
-	if (res == -1)
-		res = -errno;
-
-	close(fd);
-	return res;
-}
-
-static int hush_write(const char *path, const char *buf, size_t size,
-		     off_t offset, struct fuse_file_info *fi)
-{
-	int fd;
-	int res;
-
-	(void) fi;
-	fd = open(path, O_WRONLY);
-	if (fd == -1)
-		return -errno;
-
-	res = pwrite(fd, buf, size, offset);
-	if (res == -1)
-		res = -errno;
-
-	close(fd);
-	return res;
-}
-
-static int hush_statfs(const char *path, struct statvfs *stbuf)
-{
-	int res;
-
-	res = statvfs(path, stbuf);
-	if (res == -1)
-		return -errno;
-
-	return 0;
-}
-
-static int hush_release(const char *path, struct fuse_file_info *fi)
-{
-	/* Just a stub.	 This method is optional and can safely be left
-	   unimplemented */
-
-	(void) path;
-	(void) fi;
-	return 0;
-}
-
-static int hush_fsync(const char *path, int isdatasync,
-		     struct fuse_file_info *fi)
-{
-	/* Just a stub.	 This method is optional and can safely be left
-	   unimplemented */
-
-	(void) path;
-	(void) isdatasync;
-	(void) fi;
-	return 0;
-}
-
-#ifdef HAVE_POSIX_FALLOCATE
-static int hush_fallocate(const char *path, int mode,
-			off_t offset, off_t length, struct fuse_file_info *fi)
-{
-	int fd;
-	int res;
-
-	(void) fi;
-
-	if (mode)
-		return -EOPNOTSUPP;
-
-	fd = open(path, O_WRONLY);
-	if (fd == -1)
-		return -errno;
-
-	res = -posix_fallocate(fd, offset, length);
-
-	close(fd);
-	return res;
-}
-#endif
-
-static struct fuse_operations hush_oper = {
-	.init       = hush_init,
-	.getattr	= hush_getattr,
-	.access		= hush_access,
-	.readlink	= hush_readlink,
-	.readdir	= hush_readdir,
-	.mknod		= hush_mknod,
-	.mkdir		= hush_mkdir,
-	.symlink	= hush_symlink,
-	.unlink		= hush_unlink,
-	.rmdir		= hush_rmdir,
-	.rename		= hush_rename,
-	.link		= hush_link,
-	.chmod		= hush_chmod,
-	.chown		= hush_chown,
-	.truncate	= hush_truncate,
-#ifdef HAVE_UTIMENSAT
-	.utimens	= hush_utimens,
-#endif
-	.open		= hush_open,
-	.read		= hush_read,
-	.write		= hush_write,
-	.statfs		= hush_statfs,
-	.release	= hush_release,
-	.fsync		= hush_fsync,
-#ifdef HAVE_POSIX_FALLOCATE
-	.fallocate	= hush_fallocate,
-#endif
+struct dirbuf {
+	char *p;
+	size_t size;
 };
 
+static void dirbuf_add(fuse_req_t req, struct dirbuf *b, const char *name,
+					   fuse_ino_t ino)
+{
+	struct stat stbuf;
+	size_t oldsize = b->size;
+	b->size += fuse_add_direntry(req, NULL, 0, name, NULL, 0);
+	b->p = (char *) realloc(b->p, b->size);
+	memset(&stbuf, 0, sizeof(stbuf));
+	stbuf.st_ino = ino;
+	fuse_add_direntry(req, b->p + oldsize, b->size - oldsize, name, &stbuf,
+					  b->size);
+}
+
+#define min(x, y) ((x) < (y) ? (x) : (y))
+
+static int reply_buf_limited(fuse_req_t req, const char *buf, size_t bufsize,
+							 off_t off, size_t maxsize)
+{
+	if (off < bufsize)
+		return fuse_reply_buf(req, buf + off, min(bufsize - off, maxsize));
+	else
+		return fuse_reply_buf(req, NULL, 0);
+}
+
+static void hush_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
+							 off_t off, struct fuse_file_info *fi)
+{
+	(void) fi;
+
+	if (ino != 1)
+		fuse_reply_err(req, ENOTDIR);
+	else {
+		struct dirbuf b;
+
+		memset(&b, 0, sizeof(b));
+		dirbuf_add(req, &b, ".", 1);
+		dirbuf_add(req, &b, "..", 1);
+		dirbuf_add(req, &b, hello_name, 2);
+		reply_buf_limited(req, b.p, b.size, off, size);
+		free(b.p);
+	}
+}
+
+static void hush_open(fuse_req_t req, fuse_ino_t ino,
+						 struct fuse_file_info *fi)
+{
+	if (ino != 2)
+		fuse_reply_err(req, EISDIR);
+	else if ((fi->flags & 3) != O_RDONLY)
+		fuse_reply_err(req, EACCES);
+	else
+		fuse_reply_open(req, fi);
+}
+
+static void hush_read(fuse_req_t req, fuse_ino_t ino, size_t size,
+						 off_t off, struct fuse_file_info *fi)
+{
+	(void) fi;
+
+	assert(ino == 2);
+	reply_buf_limited(req, hello_str, strlen(hello_str), off, size);
+}
+
+static struct fuse_lowlevel_ops hush_oper = {
+	.lookup  = hush_lookup,
+	.getattr = hush_getattr,
+	.readdir = hush_readdir,
+	.open    = hush_open,
+	.read    = hush_read,
+};
+
+/*
+ *   '-f'	        foreground
+ *   '-d' '-odebug' foreground, but keep the debug option
+ *   '-s'	        single threaded
+ *   '-h' '--help'  help
+ *   '-ho'	        help without header
+ *   '-ofsname=..'  file system name, if not present, then 
+ *                  set to the program name
+ */
 int hush_mount(struct optparse *opts)
 {
-	//return fuse_main(argc, argv, &hush_oper, NULL);
-	return 0;
+	cmdopts fuseopts;
+	struct fuse_chan *ch;
+	char *mountpoint;
+	int err = -1, opt;
+
+	while ((opt = optparse(opts, "fdsh")) != -1) {
+		switch (opt) {
+			case 'f':
+				fuseopts.foreground = true;
+				break;
+			case 'd':
+				fuseopts.debug = true;
+				fuseopts.foreground = true;
+				break;
+			case 's':
+				fuseopts.single_threaded = true;
+				break;
+			case 'h':
+				usage();
+				return 0;
+			default:
+				usage();
+				return 1;
+		}
+	}
+
+	if ((mountpoint = optparse_arg(opts)) == nullptr) {
+		usage();
+		return 1;
+	}
+
+	if ((ch = fuse_mount(mountpoint, NULL)) != NULL) {
+		struct fuse_session *se;
+		se = fuse_lowlevel_new(NULL, &hush_oper, sizeof(hush_oper), NULL);
+		if (se != NULL) {
+			if (fuse_set_signal_handlers(se) != -1) {
+				fuse_session_add_chan(se, ch);
+				err = fuse_session_loop(se);
+				fuse_remove_signal_handlers(se);
+				fuse_session_remove_chan(ch);
+			}
+			fuse_session_destroy(se);
+		}
+		fuse_unmount(mountpoint, ch);
+	}
+
+	return err ? 1 : 0;
 }

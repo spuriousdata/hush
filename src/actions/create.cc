@@ -1,4 +1,4 @@
-#include <algorithm>
+#include <algorithm> // transform, tolower
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -121,7 +121,7 @@ static uint64_t parse_size(std::string s)
 				n *= 1000000000;
 				break;
 			default:
-				std::cerr << "Invalid size modifier. Must be one of k, g, or m"
+				std::cerr << "Invalid size modifier. If present, must be one of k, g, or m"
 						  << std::endl;
 				n = 0;
 		}
