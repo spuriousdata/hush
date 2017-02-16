@@ -12,7 +12,6 @@
 #include <unistd.h>
 #include <assert.h>
 
-#include "utils/optparse.h"
 #include "mount.hh"
 
 extern std::string prgname;
@@ -157,49 +156,15 @@ static struct fuse_lowlevel_ops hush_oper = {
 	.read    = hush_read,
 };
 
-/*
- *   '-f'	        foreground
- *   '-d' '-odebug' foreground, but keep the debug option
- *   '-s'	        single threaded
- *   '-h' '--help'  help
- *   '-ho'	        help without header
- *   '-ofsname=..'  file system name, if not present, then 
- *                  set to the program name
- */
-int hush_mount(struct optparse *opts)
+int hush_mount(int argc, char **argv)
 {
-	cmdopts fuseopts;
 	struct fuse_chan *ch;
 	char *mountpoint;
 	int err = -1, opt;
+	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 
-	while ((opt = optparse(opts, "fdsh")) != -1) {
-		switch (opt) {
-			case 'f':
-				fuseopts.foreground = true;
-				break;
-			case 'd':
-				fuseopts.debug = true;
-				fuseopts.foreground = true;
-				break;
-			case 's':
-				fuseopts.single_threaded = true;
-				break;
-			case 'h':
-				usage();
-				return 0;
-			default:
-				usage();
-				return 1;
-		}
-	}
-
-	if ((mountpoint = optparse_arg(opts)) == nullptr) {
-		usage();
-		return 1;
-	}
-
-	if ((ch = fuse_mount(mountpoint, NULL)) != NULL) {
+	if (fuse_parse_cmdline(&args, &mountpoint, NULL, NULL) != -1 && 
+			(ch = fuse_mount(mountpoint, NULL)) != NULL) {
 		struct fuse_session *se;
 		se = fuse_lowlevel_new(NULL, &hush_oper, sizeof(hush_oper), NULL);
 		if (se != NULL) {
