@@ -7,21 +7,21 @@
 
 namespace hush {
 	namespace fs {
-		uint64_t const MAGIC = 0x4875736845664573;
+		uint64_t const MAGIC = 0x7345664568737548;
 		uint16_t const BLOCK_SIZE = 4096;
 		uint16_t const FILENAME_MAXLEN = 255;
 
-		struct __superblock {
+		typedef struct {
 			uint64_t version;
 			uint64_t magic;
 			uint64_t block_size;
 			uint64_t inodes_count;
 			//uint64_t free_blocks;
-		};
+		} superblock_stats;
 
 		typedef struct {
-			struct __superblock fields;
-			char padding[BLOCK_SIZE - sizeof(struct __superblock)];	
+			superblock_stats fields;
+			char padding[BLOCK_SIZE - sizeof(superblock_stats)];	
 		} superblock;
 
 		typedef struct {

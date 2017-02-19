@@ -3,8 +3,7 @@
 
 #include "utils/optparse.h"
 
-//int hush_mount(struct optparse *);
-int hush_mount(int, char **);
+int hush_mount(int, struct optparse *);
 
 #endif /* HUSH_MOUNT_HH */
 

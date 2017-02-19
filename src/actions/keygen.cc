@@ -6,7 +6,12 @@
 #include <sodium.h>
 
 #include "keygen.hh"
+#include "secure.hh"
 #include "utils/optparse.h"
+#include "utils/password.hh"
+#include "crypto/secretkey.hh"
+#include "crypto/symmetric.hh"
+#include "crypto/ciphertext.hh"
 
 #define PKLEN crypto_box_PUBLICKEYBYTES
 #define SKLEN crypto_box_SECRETKEYBYTES
@@ -27,39 +32,49 @@ int hush_keygen(struct optparse *opts)
 	unsigned char *privkey = NULL;
 	std::string pubpath, privpath(DEFAULT_KEYPATH);
 	FILE *fp;
+	size_t idx;
+	hush::utils::Password password;
+	hush::crypto::SecretKey secretkey;
+	hush::crypto::CipherText ciphertext;
+	hush::crypto::Symmetric symmetric;
 
 	while ((opt = optparse(opts, "p:h")) != -1) {
 		switch (opt) {
 			case 'p':
-				privpath = optarg;
+				privpath = opts->optarg;
 				break;
 			case 'h':
 			default:
 				usage();
-				ret = 1;
-				goto bye;
+				return 1;
 		}
 	}
 
-	privpath.replace(privpath.find("~"), 1, getenv("HOME"));
+	if ((idx = privpath.find("~")) != -1)
+		privpath.replace(privpath.find("~"), 1, getenv("HOME"));
 
 	if (access(privpath.c_str(), F_OK) != -1) {
 		std::cerr << "Error! keyfile " << privpath << " already exits" << std::endl;
-		ret = 1;
-		goto bye;
+		return 1;
 	}
 
 	if (sodium_init() == -1) {
 		std::cerr << "Error initializing libsodium" << std::endl;
-		ret = 1;
-		goto bye;
+		return 1;
 	}
+
+	password.ask("Password: ", true, true);
+	secretkey.set_salt();
+	secretkey.generate_key(password.get());
 
 	pubkey = (unsigned char *)sodium_malloc(PKLEN);
 	privkey = (unsigned char *)sodium_malloc(SKLEN);
 
 	printf("Generating Key Pair\n");
 	crypto_box_keypair(pubkey, privkey);
+
+	hush::secure::vector<unsigned char> message(privkey, privkey+SKLEN);
+	symmetric.encipher(ciphertext, secretkey, message);
 
 	fp = fopen(privpath.c_str(), "w");
 	fwrite(privkey, 1, SKLEN, fp);
@@ -71,7 +86,6 @@ int hush_keygen(struct optparse *opts)
 	fwrite(pubkey, 1, PKLEN, fp);
 	fclose(fp);
 
-bye:
 	if (pubkey)
 		sodium_free(pubkey);
 

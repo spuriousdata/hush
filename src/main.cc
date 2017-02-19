@@ -24,10 +24,8 @@ int main(int argc, char **argv)
 {
 	std::string mode;
 	struct optparse opts;
-	int opt, ret;
+	int opt;
 	char *tmp;
-	std::vector<std::string> args_in;
-	std::vector<char*> args_out;
 
 	umask(0);
 
@@ -64,26 +62,7 @@ int main(int argc, char **argv)
 	else if (mode == "create")
 		return hush_create(&opts);
 	else if (mode == "mount") {
-		/*
-		 * I really hate doing this, but fuse REALLY wants to parse the cmdline
-		 * args and prior to 3.0, which isn't installed or available most
-		 * anywhere, it actually stores information in argv.
-		 */
-		args_in.push_back(prgname);
-		for (int i = opts.optind; i < argc; i++)
-			args_in.push_back(opts.argv[i]);
-
-		std::transform(args_in.begin(),
-					   args_in.end(),
-					   std::back_inserter(args_out),
-					   [] (const std::string &s) -> char * {
-						return strdup(s.c_str());
-					   });
-
-		ret = hush_mount(args_out.size(), args_out.data());
-		for (auto it = args_out.begin(); it != args_out.end(); it++)
-			free(*it);
-		return ret;
+		return hush_mount(argc, &opts);
 	} else {
 		usage();
 		return 1;
