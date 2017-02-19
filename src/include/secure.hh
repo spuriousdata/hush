@@ -57,7 +57,6 @@ namespace hush {
 
 			void construct(pointer p, const T& value)
 			{
-				std::cerr << "Called construct(" << p << ", " << value << ")" << std::endl;
 				new((void*)p)T(value);
 			};
 

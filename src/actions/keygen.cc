@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include <string>
 #include <cstdio>
 #include <cstdlib>
@@ -9,6 +10,7 @@
 #include "secure.hh"
 #include "utils/optparse.h"
 #include "utils/password.hh"
+#include "utils/b64.hh"
 #include "crypto/secretkey.hh"
 #include "crypto/symmetric.hh"
 #include "crypto/ciphertext.hh"
@@ -37,6 +39,8 @@ int hush_keygen(struct optparse *opts)
 	hush::crypto::SecretKey secretkey;
 	hush::crypto::CipherText ciphertext;
 	hush::crypto::Symmetric symmetric;
+	std::string pem;
+	hush::utils::B64<std::vector<unsigned char>, std::string> b64;
 
 	while ((opt = optparse(opts, "p:h")) != -1) {
 		switch (opt) {
@@ -75,9 +79,10 @@ int hush_keygen(struct optparse *opts)
 
 	hush::secure::vector<unsigned char> message(privkey, privkey+SKLEN);
 	symmetric.encipher(ciphertext, secretkey, message);
+	pem = b64.pemify(b64.encode(ciphertext));
 
 	fp = fopen(privpath.c_str(), "w");
-	fwrite(privkey, 1, SKLEN, fp);
+	fwrite(pem.data(), 1, pem.size(), fp);
 	fclose(fp);
 
 	pubpath = privpath + ".pub";
