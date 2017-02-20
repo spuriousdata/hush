@@ -29,7 +29,8 @@ int Password::getpwchar(void) {
 
 void Password::ask(const char *prompt, bool confirm, bool show_asterisk)
 {
-	if (confirm && (password = obtain(prompt, show_asterisk)) != obtain("Confirm: ", show_asterisk))
+	password = obtain(prompt, show_asterisk);
+	if (confirm && (password != obtain("Confirm: ", show_asterisk)))
 		throw PasswordException("Passwords don't match!");
 }
 
@@ -40,7 +41,7 @@ hush::secure::string Password::obtain(const char *prompt, bool show_asterisk)
 	unsigned char ch=0;
 	hush::secure::string input;
 
-	std::cout << prompt << std::endl;
+	std::cout << prompt;
 
 	while ((ch = getpwchar()) != RETURN) {
 		if (ch == BACKSPACE) {

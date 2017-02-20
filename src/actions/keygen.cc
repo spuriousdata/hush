@@ -11,6 +11,7 @@
 #include "utils/optparse.h"
 #include "utils/password.hh"
 #include "utils/b64.hh"
+#include "utils/tools.hh"
 #include "crypto/secretkey.hh"
 #include "crypto/symmetric.hh"
 #include "crypto/ciphertext.hh"
@@ -39,6 +40,8 @@ int hush_keygen(struct optparse *opts)
 	hush::crypto::SecretKey secretkey;
 	hush::crypto::CipherText ciphertext;
 	hush::crypto::Symmetric symmetric;
+	hush::secure::vector<unsigned char> message;
+	std::vector<unsigned char> s_message;
 	std::string pem;
 	hush::utils::B64<std::vector<unsigned char>, std::string> b64;
 
@@ -77,19 +80,19 @@ int hush_keygen(struct optparse *opts)
 	printf("Generating Key Pair\n");
 	crypto_box_keypair(pubkey, privkey);
 
-	hush::secure::vector<unsigned char> message(privkey, privkey+SKLEN);
+	message.clear();
+	message.assign(privkey, privkey+SKLEN);
 	symmetric.encipher(ciphertext, secretkey, message);
 	pem = b64.pemify(b64.encode(ciphertext));
 
-	fp = fopen(privpath.c_str(), "w");
-	fwrite(pem.data(), 1, pem.size(), fp);
-	fclose(fp);
+	create_and_write(privpath, pem.data(), pem.size(), 0600);
 
 	pubpath = privpath + ".pub";
 
-	fp = fopen(pubpath.c_str(), "w");
-	fwrite(pubkey, 1, PKLEN, fp);
-	fclose(fp);
+	s_message.clear();
+	s_message.assign(pubkey, pubkey+PKLEN);
+	pem = b64.pemify(b64.encode(s_message));
+	create_and_write(pubpath, pem.data(), pem.size(), 0600);
 
 	if (pubkey)
 		sodium_free(pubkey);

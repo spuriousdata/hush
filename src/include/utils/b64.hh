@@ -66,14 +66,19 @@ namespace hush {
 			const R pemify(const R& in)
 			{
 				R out;
-				uint64_t counter = 0;
+				int linelen = 0;
 			
+				out = "-----BEGIN SODIUM PRIVATE KEY-----\r\n";
 				for (auto it = in.begin(); it != in.end(); it++) {
 					out.push_back(*it);
-					if ((counter++ % 64) == 0) {
+					if (++linelen == 64) {
+						linelen = 0;
 						out.append("\r\n");
 					}
 				}
+				if (linelen != 0)
+					out.append("\r\n");
+				out.append("-----BEGIN SODIUM PRIVATE KEY-----");
 				return out;
 			};
 

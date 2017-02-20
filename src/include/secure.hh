@@ -2,7 +2,7 @@
 #define SECURE_HH_
 
 #include <limits> // numeric_limits
-#include <new> // bad_alloc
+#include <new> // bad_alloc, "placement" new
 #include <iostream>
 #include <string>
 #include <vector>
@@ -30,9 +30,9 @@ namespace hush {
 			typedef std::ptrdiff_t difference_type;
 
 			// constructors
-			SodiumAllocator() throw() { init(); }
-			SodiumAllocator(const SodiumAllocator&) throw() { init(); }
-			template <class U> SodiumAllocator(const SodiumAllocator<U>&) throw() { init(); }
+			SodiumAllocator() throw() { init(); };
+			SodiumAllocator(const SodiumAllocator&) throw() { init(); };
+			template <class U> SodiumAllocator(const SodiumAllocator<U>&) throw() { init(); };
 
 			// methods
 			template<class U> struct rebind { typedef SodiumAllocator<U> other; };
