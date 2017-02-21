@@ -17,10 +17,10 @@ int main()
 	std::cout << b.encode(in) << std::endl;
 	//std::cout << b.pemify(b.encode(in), "TEST") << std::endl;
 	std::cout << b.unpemify(b.pemify(b.encode(in), "TEST")) << std::endl;
-
+	
 	std::cout << s << std::endl;
+
 	out = b.decode(b.encode(in));
 	s.assign(out.begin(), out.end());
-
 	std::cout << s << std::endl;
 }
