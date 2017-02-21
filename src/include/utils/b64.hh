@@ -1,10 +1,19 @@
 #ifndef B64_HH_
 #define B64_HH_
 
+#include <stdexcept>
+#include <algorithm> // transform, toupper
 #include "crypto/ciphertext.hh"
+
+#define BETWEEN(x, a, b) ((x) >= (a) && (x) <= (b))
 
 namespace hush {
 	namespace utils {
+		class B64Exception : public std::runtime_error
+		{
+			using std::runtime_error::runtime_error;
+			using std::runtime_error::what;
+		};
 		 
 		// T should be some kind of vector<unsigned char>
 		// R should be some kind of string
@@ -18,7 +27,7 @@ namespace hush {
 				unsigned char a, b, c, oa, ob, oc, od;
 				int pad = 0;
 			
-				for (auto it = in.begin(); it != in.end() && pad == 0; it+=3) {
+				for (auto it = in.begin(); it != in.end() && pad == 0; it += 3) {
 					a = *it;
 					if ((it+1) == in.end()) {
 						b = c = 0;
@@ -53,6 +62,28 @@ namespace hush {
 				return out;
 			};
 
+			const T decode(const R& in)
+			{
+				T out;
+				unsigned char a, b, c, d;
+
+				for (auto it = in.begin(); it != in.end(); it += 4) {
+					a = decode_byte(*it);
+					b = decode_byte(*(it+1));
+					c = decode_byte(*(it+2));
+					d = decode_byte(*(it+3));
+
+					if (c == -1)
+						c = 0;
+
+					out.push_back((a << 2) | ((b & 0x30) >> 4));
+					out.push_back(((b & 0x0F) << 4) | ((c & 0x3C) >> 2));
+					if (d != -1)
+						out.push_back(((c & 0x03) << 6) | d);
+				}
+				return out;
+			};
+
 			const R encode(const hush::crypto::CipherText &ct)
 			{
 				R out;
@@ -63,12 +94,20 @@ namespace hush {
 				return out;
 			};
 
-			const R pemify(const R& in)
+			const R pemify(const R& in, const char *keytype)
+			{
+				std::string k = keytype;
+				return pemify(in, k);
+			}
+
+			const R pemify(const R& in, const std::string& keytype)
 			{
 				R out;
 				int linelen = 0;
+				std::string kt = keytype;
+				std::transform(kt.begin(), kt.end(), kt.begin(), ::toupper); 
 			
-				out = "-----BEGIN SODIUM PRIVATE KEY-----\r\n";
+				out = "-----BEGIN SODIUM "+ kt + " KEY-----\r\n";
 				for (auto it = in.begin(); it != in.end(); it++) {
 					out.push_back(*it);
 					if (++linelen == 64) {
@@ -78,8 +117,44 @@ namespace hush {
 				}
 				if (linelen != 0)
 					out.append("\r\n");
-				out.append("-----BEGIN SODIUM PRIVATE KEY-----");
+				out.append("-----END SODIUM " + kt + " KEY-----");
 				return out;
+			};
+
+			const R unpemify(const R& in)
+			{
+				R out;
+				size_t pos;
+				std::string marker = "-----";
+
+				if (in.find(marker) != 0)
+					throw B64Exception("Bad PEM data, can't unencode");
+
+				out = in.substr(in.find("\r\n")+2, in.rfind("\r\n"));
+
+				while ((pos = out.find("\r\n")) != -1)
+					out.replace(pos, 2, "");
+
+				return out.substr(0, out.find(marker));
+			};
+
+			const int decode_byte(char x)
+			{
+				if (BETWEEN(x, 'A', 'Z')) {
+					return x - 'A';
+				} else if (BETWEEN(x, 'a', 'z')) {
+					return (x - 'a') + 26;
+				} else if (BETWEEN(x, '0', '9')) {
+					return (x - '0') + 52;
+				} else if (x == '+') {
+					return 62;
+				} else if (x == '/') {
+					return 63;
+				} else if (x == '=') {
+					return -1;
+				} else {
+					throw B64Exception("Invalid Base 64 Character!");
+				}
 			};
 
 		private:

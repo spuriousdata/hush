@@ -33,16 +33,14 @@ int hush_keygen(struct optparse *opts)
 	int opt, ret = 0;
 	unsigned char *pubkey = NULL;
 	unsigned char *privkey = NULL;
-	std::string pubpath, privpath(DEFAULT_KEYPATH);
-	FILE *fp;
 	size_t idx;
+	std::string pubpath, privpath(DEFAULT_KEYPATH), pem;
 	hush::utils::Password password;
 	hush::crypto::SecretKey secretkey;
 	hush::crypto::CipherText ciphertext;
 	hush::crypto::Symmetric symmetric;
 	hush::secure::vector<unsigned char> message;
 	std::vector<unsigned char> s_message;
-	std::string pem;
 	hush::utils::B64<std::vector<unsigned char>, std::string> b64;
 
 	while ((opt = optparse(opts, "p:h")) != -1) {
@@ -83,7 +81,7 @@ int hush_keygen(struct optparse *opts)
 	message.clear();
 	message.assign(privkey, privkey+SKLEN);
 	symmetric.encipher(ciphertext, secretkey, message);
-	pem = b64.pemify(b64.encode(ciphertext));
+	pem = b64.pemify(b64.encode(ciphertext), "PRIVATE");
 
 	create_and_write(privpath, pem.data(), pem.size(), 0600);
 
@@ -91,7 +89,7 @@ int hush_keygen(struct optparse *opts)
 
 	s_message.clear();
 	s_message.assign(pubkey, pubkey+PKLEN);
-	pem = b64.pemify(b64.encode(s_message));
+	pem = b64.pemify(b64.encode(s_message), "PUBLIC");
 	create_and_write(pubpath, pem.data(), pem.size(), 0600);
 
 	if (pubkey)

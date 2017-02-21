@@ -23,11 +23,18 @@ void SecretKey::set_key(unsigned char *k)
 
 void SecretKey::generate_key(const hush::secure::string& input)
 {
-	if (crypto_pwhash(key, crypto_box_SEEDBYTES, input.c_str(), input.length(),
-				salt, crypto_pwhash_OPSLIMIT_INTERACTIVE, 
-				crypto_pwhash_MEMLIMIT_INTERACTIVE, 
-				crypto_pwhash_ALG_DEFAULT) != 0)
-		throw SecretKeyException("Can't hash password into key, out of memory");
-	has_key = true;
+	if (!has_salt)
+		set_salt();
+
+	if (!has_key) {
+		if (crypto_pwhash(key, crypto_box_SEEDBYTES, input.c_str(), input.length(),
+					salt, crypto_pwhash_OPSLIMIT_INTERACTIVE, 
+					crypto_pwhash_MEMLIMIT_INTERACTIVE, 
+					crypto_pwhash_ALG_DEFAULT) != 0)
+			throw SecretKeyException("Can't hash password into key, out of memory");
+		has_key = true;
+	} else { // has_key
+		throw SecretKeyException("Already have a key, aborting!");
+	} 
 }
 
