@@ -5,29 +5,37 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "config.h"
+
 namespace hush {
 	namespace fs {
-		uint64_t const MAGIC = 0x7345664568737548;
-		uint16_t const BLOCK_SIZE = 4096;
-		uint16_t const FILENAME_MAXLEN = 255;
+		uint64_t const MAGIC = 0x48757348; // HusH
+		uint64_t const BLOCK_SIZE = HUSHFS_BLOCK_SIZE;
+		uint64_t const FILENAME_MAXLEN = 255;
 
 		typedef struct {
-			uint64_t version;
 			uint64_t magic;
+			uint64_t version;
 			uint64_t block_size;
 			uint64_t inodes_count;
-			//uint64_t free_blocks;
-		} superblock_stats;
+		} superblock_stats_t;
 
 		typedef struct {
-			superblock_stats fields;
-			char padding[BLOCK_SIZE - sizeof(superblock_stats)];	
-		} superblock;
+			superblock_stats_t fields;
+			char padding[BLOCK_SIZE - sizeof(superblock_stats_t)];	
+		} superblock_t;
 
 		typedef struct {
-			char name[FILENAME_MAXLEN];
-			uint64_t inode_number;
-		} file;
+			unsigned char data[BLOCK_SIZE];
+		} datablock_t;
+
+		// https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout#Overview
+		typedef struct __indirect_block {
+			union {
+				datablock_t *blocks[BLOCK_SIZE / sizeof(datablock_t *)];
+				struct __indirect_block *i_blocks[BLOCK_SIZE / sizeof(datablock_t *)];
+			};
+		} indirect_block_t;
 
 		typedef struct {
 			mode_t mode;
@@ -38,15 +46,27 @@ namespace hush {
 			struct timespec atime;
 			struct timespec mtime;
 			struct timespec ctime;
-			superblock *superblock;
+
+			datablock_t *direct[12];
+			indirect_block_t *first;
+			indirect_block_t **second;
+			indirect_block_t ***third;
 
 			union {
 				uint64_t file_size;
-				uint64_t directory_num_children;
+				uint64_t dir_children;
 			};
-		} inode;
+		} inode_t;
+
+		typedef struct {
+			uint64_t used_inodes;
+		} inode_table_t;
+
+		typedef struct {
+			char name[FILENAME_MAXLEN];
+			uint64_t i_no;
+		} dirent_t;
 	};
 };
 
 #endif /* FS_H_ */
-

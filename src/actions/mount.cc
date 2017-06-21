@@ -70,8 +70,10 @@ static void hush_getattr(fuse_req_t req, fuse_ino_t ino,
 
 static void hush_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
 {
-	std::cerr << "hush_lookup(x, parent=" << parent << ", name=" << name << ")" << std::endl;
 	struct fuse_entry_param e;
+
+	if (__debug)
+		std::cerr << "hush_lookup(x, parent=" << parent << ", name=" << name << ")" << std::endl;
 
 	if (parent != 1 || strcmp(name, hello_name) != 0)
 		fuse_reply_err(req, ENOENT);

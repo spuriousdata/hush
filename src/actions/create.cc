@@ -17,43 +17,42 @@
 
 static void usage();
 static uint64_t parse_size(std::string);
-static void format(FILE *);
-static void write_root_inode(FILE *fp);
-static void write_superblock(FILE *fp);
+static void format(int);
+static void write_root_inode(int);
+static void write_superblock(int);
 
 extern std::string prgname;
 
 
-static void format(FILE *fp)
+static void format(int fd)
 {
-	write_superblock(fp);
-	write_root_inode(fp);
+	write_superblock(fd);
+	write_root_inode(fd);
 }
 
-static void write_root_inode(FILE *fp)
+static void write_root_inode(int fd)
 {
 	struct timespec ts;
 	size_t bytes;
-	hush::fs::inode ino;
+	hush::fs::inode_t inode;
 
 	clock_gettime(CLOCK_REALTIME, &ts);
-	ino = {
+	inode = {
 		.mode = S_IFDIR,
-		.inode_number = 1,
-		.block_number = 1,
+		.inode_number = 1, // root directory inode is 1
+		.block_number = 1, // root datablock is also 1
 		.uid = getuid(),
 		.gid = getgid(),
-		.atime = ts,
 		.ctime = ts,
 		.mtime = ts,
-		.directory_num_children = 1,
+		.dir_children = 0,
 	};
 
-	bytes = fwrite(&ino, sizeof ino, 1, fp);
+	bytes = write(fd, &inode, sizeof inode);
 
-	if (bytes != 1) {
+	if (bytes != sizeof inode) {
 		std::ostringstream s;
-		s << "Error writing root inode: Wrote " << bytes << " bytes, expected " << sizeof ino << std::endl;
+		s << "Error writing root inode: Wrote " << bytes << " bytes, expected " << sizeof inode << std::endl;
 		std::cerr << s.str();
 		throw s.str();
 	}
@@ -61,21 +60,21 @@ static void write_root_inode(FILE *fp)
 	std::cout << "Wrote root entry" << std::endl;
 }
 
-static void write_superblock(FILE *fp)
+static void write_superblock(int fd)
 {
 	size_t bytes;
-	hush::fs::superblock sb = {
+	hush::fs::superblock_t sb = {
 		{
-			.version = 1,
 			.magic = hush::fs::MAGIC,
+			.version = HUSHFS_VERSION,
 			.block_size = hush::fs::BLOCK_SIZE,
-			.inodes_count = 0,
+			.inodes_count = 1, // 1 for root inode we're about to create
 		},
 	};
 
-	bytes = fwrite(&sb, sizeof sb, 1, fp);
+	bytes = write(fd, &sb, sizeof sb);
 
-	if (bytes != 1) {
+	if (bytes != sizeof sb) {
 		std::ostringstream s;
 		s << "Error writing superblock: Wrote " << bytes << " bytes, expected " << sizeof sb << std::endl;
 		std::cerr << s.str();
@@ -136,7 +135,6 @@ int hush_create(struct optparse *opts)
 	std::string filename, keypath;
 	uint64_t filelen = 0;
 	char *tmp;
-	FILE *fp;
 
 	while ((opt = optparse(opts, "k:s:h")) != -1) {
 		switch (opt) {
@@ -179,26 +177,20 @@ int hush_create(struct optparse *opts)
 		goto bye;
 	}
 
-	if ((fp = fdopen(fd, "w+")) == NULL) {
-		ret = 1;
-		std::cerr << "Error getting file pointer for file " << filename << std::endl;
-		goto bye;
-	}
-
 	try {
-		format(fp);
+		format(fd);
 	} catch (...) {
-		fclose(fp);
+		close(fd);
 		throw;
 	}
 
 	// create sparse file
-	fseek(fp, filelen-1, SEEK_SET);
-	fwrite(&nullbyte, 1, 1, fp);
+	lseek(fd, filelen-1, SEEK_SET);
+	write(fd, &nullbyte, 1);
 
 
 prebye:
-	fclose(fp);
+	close(fd);
 
 bye:
 	return ret;

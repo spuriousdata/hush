@@ -1,6 +1,9 @@
-CC=clang
-CFLAGS=-Wall -Isrc/include $(shell pkg-config --cflags fuse libsodium) -std=c++1y -g
-LDFLAGS=$(shell pkg-config --libs libsodium) $(shell pkg-config --libs fuse) -lstdc++
+PKG_CFLAGS != pkg-config --cflags fuse libsodium
+CFLAGS=-Wall -Isrc/include -std=c++1y -g $(PKG_CFLAGS)
+
+PKG_LDFLAGS != pkg-config --libs libsodium fuse
+
+LDFLAGS=-lstdc++ $(PKG_LDFLAGS)
 
 EXE=hush
 TESTS=b64test

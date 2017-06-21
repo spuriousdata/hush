@@ -12,10 +12,8 @@ void Symmetric::encipher(CipherText& dest, const SecretKey& sk,
 {
 	unsigned char *data;
 	unsigned char nonce[crypto_secretbox_NONCEBYTES];
-	// WARNING
-	// If the vector ever has a type other than char, then this will need to be
-	// modified to multiply the sizeof(T) * message.size().
-	uint64_t msglen = crypto_secretbox_MACBYTES + message.size();
+
+	uint64_t msglen = crypto_secretbox_MACBYTES + (sizeof(message[0]) * message.size());
 
 	randombytes_buf(nonce, sizeof nonce);
 
