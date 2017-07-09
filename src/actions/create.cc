@@ -64,12 +64,12 @@ static void write_superblock(int fd)
 {
 	size_t bytes;
 	hush::fs::superblock_t sb = {
-		{
+		.fields = {
 			.magic = hush::fs::MAGIC,
 			.version = HUSHFS_VERSION,
 			.block_size = hush::fs::BLOCK_SIZE,
 			.inodes_count = 1, // 1 for root inode we're about to create
-		},
+		}
 	};
 
 	bytes = write(fd, &sb, sizeof sb);

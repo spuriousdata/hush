@@ -19,6 +19,8 @@
 #include "utils/optparse.h"
 #include "mount.hh"
 
+#define min(x, y) ((x) < (y) ? (x) : (y))
+
 extern std::string prgname;
 
 static const char *hello_str = "Hello World!\n";
@@ -52,8 +54,7 @@ static int hush_stat(fuse_ino_t ino, struct stat *stbuf)
 	return 0;
 }
 
-static void hush_getattr(fuse_req_t req, fuse_ino_t ino,
-							 struct fuse_file_info *fi)
+static void hush_getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 {
 	struct stat stbuf;
 
@@ -106,8 +107,6 @@ static void dirbuf_add(fuse_req_t req, struct dirbuf *b, const char *name,
 					  b->size);
 }
 
-#define min(x, y) ((x) < (y) ? (x) : (y))
-
 static int reply_buf_limited(fuse_req_t req, const char *buf, size_t bufsize,
 							 off_t off, size_t maxsize)
 {
@@ -158,12 +157,22 @@ static void hush_read(fuse_req_t req, fuse_ino_t ino, size_t size,
 	reply_buf_limited(req, hello_str, strlen(hello_str), off, size);
 }
 
+// XXX
+static void hush_create(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode, struct fuse_file_info *fi)
+{
+	if (__debug)
+		std::cerr << "hush_create(req=x, parent=" << parent << ", name=\"" << 
+			name << "\", mode=" << std::oct << mode << ", fi=" << fi << ")" << 
+			std::endl;
+}
+
 static struct fuse_lowlevel_ops hush_oper = {
 	.lookup  = hush_lookup,
 	.getattr = hush_getattr,
 	.readdir = hush_readdir,
 	.open    = hush_open,
 	.read    = hush_read,
+	.create  = hush_create,
 };
 
 int hush_mount(int main_argc, struct optparse *opts)

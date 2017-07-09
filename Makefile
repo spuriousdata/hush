@@ -26,6 +26,6 @@ test: $(TESTS)
 	
 b64test: src/test/b64test.cc src/include/utils/b64.hh
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
-
+	
 clean:
 	-rm $(OBJS) $(EXE) $(TESTS)
