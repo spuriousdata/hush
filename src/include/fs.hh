@@ -7,6 +7,10 @@
 
 #include "config.h"
 
+#define KB 1024
+#define MB (KB*1024)
+#define GB (MB*1024)
+
 namespace hush {
 	namespace fs {
 		uint64_t const MAGIC = 0x48757348; // HusH

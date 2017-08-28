@@ -111,13 +111,13 @@ static uint64_t parse_size(std::string s)
 	if (! suffix.empty()) {
 		switch (suffix.at(0)) {
 			case 'k':
-				n *= 1000;
+				n *= KB;
 				break;
 			case 'm':
-				n *= 1000000;
+				n *= MB;
 				break;
 			case 'g':
-				n *= 1000000000;
+				n *= GB;
 				break;
 			default:
 				std::cerr << "Invalid size modifier. If present, must be one of k, g, or m"
@@ -135,9 +135,14 @@ int hush_create(struct optparse *opts)
 	std::string filename, keypath;
 	uint64_t filelen = 0;
 	char *tmp;
+	bool no_sparse = false;
+	off_t curpos;
 
-	while ((opt = optparse(opts, "k:s:h")) != -1) {
+	while ((opt = optparse(opts, "Sk:s:h")) != -1) {
 		switch (opt) {
+			case 'S':
+				no_sparse = true;
+				break;
 			case 'k':
 				keypath = opts->optarg;
 				break;
@@ -184,9 +189,18 @@ int hush_create(struct optparse *opts)
 		throw;
 	}
 
-	// create sparse file
-	lseek(fd, filelen-1, SEEK_SET);
-	write(fd, &nullbyte, 1);
+	if (no_sparse) {
+		tmp = new char[1024];
+		curpos = lseek(fd, 0, SEEK_CUR);
+		while ((curpos = lseek(fd, 0, SEEK_CUR)) < filelen) {
+			write(fd, tmp, filelen-curpos);
+		}
+		delete[] tmp;
+	} else {
+		// create sparse file
+		lseek(fd, filelen-1, SEEK_SET);
+		write(fd, &nullbyte, 1);
+	}
 
 
 prebye:
