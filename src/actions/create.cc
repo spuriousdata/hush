@@ -17,16 +17,15 @@
 
 static void usage();
 static uint64_t parse_size(std::string);
-static void format(int);
+static void format(int, uint64_t);
 static void write_root_inode(int);
-static void write_superblock(int);
+static void write_superblock(int, uint64_t);
 
 extern std::string prgname;
 
-
-static void format(int fd)
+static void format(int fd, uint64_t filelen)
 {
-	write_superblock(fd);
+	write_superblock(fd, filelen);
 	write_root_inode(fd);
 }
 
@@ -57,10 +56,10 @@ static void write_root_inode(int fd)
 		throw s.str();
 	}
 
-	std::cout << "Wrote root entry" << std::endl;
+	std::cout << "Wrote root inode, size: " << sizeof(inode) << std::endl;
 }
 
-static void write_superblock(int fd)
+static void write_superblock(int fd, uint64_t filelen)
 {
 	size_t bytes;
 	hush::fs::superblock_t sb = {
@@ -68,6 +67,8 @@ static void write_superblock(int fd)
 			.magic = hush::fs::MAGIC,
 			.version = HUSHFS_VERSION,
 			.block_size = hush::fs::BLOCK_SIZE,
+			.disk_size = filelen,
+			.total_inodes = (uint64_t)(filelen / sizeof(hush::fs::inode_t)),
 			.inodes_count = 1, // 1 for root inode we're about to create
 		}
 	};
@@ -80,7 +81,7 @@ static void write_superblock(int fd)
 		std::cerr << s.str();
 		throw s.str();
 	}
-	std::cout << "Wrote superblock" << std::endl;	
+	std::cout << "Wrote superblock, size: " << sizeof(sb) << std::endl;	
 }
 
 static void usage()
@@ -183,7 +184,7 @@ int hush_create(struct optparse *opts)
 	}
 
 	try {
-		format(fd);
+		format(fd, filelen);
 	} catch (...) {
 		close(fd);
 		throw;

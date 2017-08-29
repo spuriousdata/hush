@@ -8,8 +8,8 @@
 #include "config.h"
 
 #define KB 1024
-#define MB (KB*1024)
-#define GB (MB*1024)
+#define MB (1024*KB)
+#define GB (1024*MB)
 
 namespace hush {
 	namespace fs {
@@ -21,6 +21,8 @@ namespace hush {
 			uint64_t magic;
 			uint64_t version;
 			uint64_t block_size;
+			uint64_t disk_size;
+			uint64_t total_inodes;
 			uint64_t inodes_count;
 		} superblock_stats_t;
 
