@@ -4,7 +4,7 @@
 #include <sodium.h>
 #include "crypto/secretkey.hh"
 #include "crypto/ciphertext.hh"
-#include "secure.hh"
+#include "utils/secure.hh"
 
 namespace hush {
 	namespace crypto {

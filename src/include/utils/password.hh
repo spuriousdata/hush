@@ -2,7 +2,7 @@
 #define PASSWORD_HH_
 
 #include <stdexcept>
-#include "secure.hh"
+#include "utils/secure.hh"
 
 namespace hush {
 	namespace utils {

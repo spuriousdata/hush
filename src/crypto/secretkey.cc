@@ -1,7 +1,7 @@
 #include <cstring>
 #include <sodium.h>
 
-#include "secure.hh"
+#include "utils/secure.hh"
 #include "crypto/secretkey.hh"
 
 using namespace hush::crypto;
