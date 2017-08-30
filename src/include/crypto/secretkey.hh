@@ -3,7 +3,7 @@
 
 #include <stdexcept>
 #include <sodium.h>
-#include "secure.hh"
+#include "utils/secure.hh"
 
 namespace hush {
 	namespace crypto {

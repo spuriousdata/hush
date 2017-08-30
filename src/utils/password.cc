@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <iostream>
 #include "utils/password.hh"
-#include "secure.hh"
+#include "utils/secure.hh"
 
 using namespace hush::utils;
 

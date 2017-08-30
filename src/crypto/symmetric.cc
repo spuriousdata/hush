@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "crypto/symmetric.hh"
 #include "crypto/ciphertext.hh"
-#include "secure.hh"
+#include "utils/secure.hh"
 
 using namespace hush::crypto;
 

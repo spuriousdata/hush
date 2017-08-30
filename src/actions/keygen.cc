@@ -7,7 +7,7 @@
 #include <sodium.h>
 
 #include "keygen.hh"
-#include "secure.hh"
+#include "utils/secure.hh"
 #include "utils/optparse.h"
 #include "utils/password.hh"
 #include "utils/b64.hh"
