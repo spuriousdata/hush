@@ -7,9 +7,9 @@ CFLAGS+=-g -DLOGURU_DEBUG_LOGGING
 # DEBUG
 
 BIN=hush
-TESTS=b64test
+TESTS=b64test testlog vartest
 CRYPTO=src/crypto/secretkey.o src/crypto/symmetric.o 
-UTILS=src/utils/optparse.o src/utils/password.o src/utils/tools.o src/utils/loguru.o
+UTILS=src/utils/optparse.o src/utils/password.o src/utils/tools.o
 ACTIONS=src/actions/keygen.o src/actions/mount.o src/actions/create.o
 
 OBJS=src/main.o \
@@ -31,8 +31,17 @@ $(BIN): $(OBJS)
 
 test: $(TESTS)
 	
-b64test: src/test/b64test.cc src/include/utils/b64.hh
+b64test: src/test/b64test.cc
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+
+testlog: src/test/testlog.cc
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	
+vartest: src/test/vartest.cc
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 	
 clean:
 	-rm $(OBJS) $(BIN) $(TESTS)
+
+distclean: clean
+	-find . -type f -name \*.o -o -name \*.d | xargs rm

@@ -62,14 +62,19 @@ static void write_root_inode(int fd)
 static void write_superblock(int fd, uint64_t filelen)
 {
 	size_t bytes;
+	uint64_t num_inodes = (uint64_t)(filelen / sizeof(hush::fs::inode_t));
+	uint64_t num_blocks = (uint64_t)(filelen / hush::fs::BLOCK_SIZE);
+
 	hush::fs::superblock_t sb = {
 		.fields = {
 			.magic = hush::fs::MAGIC,
 			.version = HUSHFS_VERSION,
 			.block_size = hush::fs::BLOCK_SIZE,
 			.disk_size = filelen,
-			.total_inodes = (uint64_t)(filelen / sizeof(hush::fs::inode_t)),
-			.inodes_count = 1, // 1 for root inode we're about to create
+			.total_inodes = num_inodes,
+			.total_blocks = num_blocks,
+			.inode_bitmap_blocks = (uint64_t)(num_inodes / 8),
+			.block_bitmap_blocks = (uint64_t)(num_blocks / 8),
 		}
 	};
 

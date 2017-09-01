@@ -7,7 +7,10 @@
 #include <unistd.h>
 #include <sstream>
 #include "utils/tools.hh"
-#include "utils/loguru.hh"
+#include "utils/log.hh"
+#include "config.h"
+
+static slog::Log logger(LOGLEVEL);
 
 template<typename T>
 void split(const std::string &s, char delimiter, T result)
@@ -44,13 +47,8 @@ void create_and_write(const std::string& name, const void *data, size_t datalen,
 			continue;
 		sofar += "/" + *it;
 
-		/*
-		DLOG_F(INFO, "sofar = %s", sofar.c_str());
-		DLOG_F(INFO, "*it = %s", it->c_str());
-		*/
-		
 		if (stat(sofar.c_str(), &statbuf) != 0) {
-			LOG_F(INFO, "Attempting to create directory %s", sofar.c_str());
+			logger.info("Attempting to create directory %1", sofar);
 			mkdir(sofar.c_str(), 0700);
 		}
 	}

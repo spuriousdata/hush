@@ -7,23 +7,21 @@
 
 #include "config.h"
 
-#define KB 1024
-#define MB (1024*KB)
-#define GB (1024*MB)
-
 namespace hush {
 	namespace fs {
-		uint64_t const MAGIC = 0x48757348; // HusH
-		uint64_t const BLOCK_SIZE = HUSHFS_BLOCK_SIZE;
-		uint64_t const FILENAME_MAXLEN = 255;
+		uint32_t const MAGIC = 0x48757348; // HusH
+		uint32_t const BLOCK_SIZE = HUSHFS_BLOCK_SIZE;
+		uint16_t const FILENAME_MAXLEN = 255;
 
 		typedef struct {
-			uint64_t magic;
-			uint64_t version;
-			uint64_t block_size;
+			uint32_t magic;
+			 uint8_t version;
+			uint32_t block_size;
 			uint64_t disk_size;
 			uint64_t total_inodes;
-			uint64_t inodes_count;
+			uint64_t total_blocks;
+			uint64_t inode_bitmap_blocks;
+			uint64_t block_bitmap_blocks;
 		} superblock_stats_t;
 
 		typedef struct {
