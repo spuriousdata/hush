@@ -1,6 +1,10 @@
 CC=clang
-CFLAGS=-Wall -Isrc/include $(shell pkg-config --cflags fuse libsodium) -std=c++1y -g -DLOGURU_DEBUG_LOGGING
+CFLAGS=-Wall -Isrc/include $(shell pkg-config --cflags fuse libsodium) -std=c++1y
 LDFLAGS=$(shell pkg-config --libs libsodium) $(shell pkg-config --libs fuse) -lstdc++ -ldl
+
+# DEBUG
+CFLAGS+=-g -DLOGURU_DEBUG_LOGGING
+# DEBUG
 
 BIN=hush
 TESTS=b64test
