@@ -7,7 +7,7 @@ CFLAGS+=-g -DLOGURU_DEBUG_LOGGING
 # DEBUG
 
 BIN=hush
-TESTS=b64test testlog vartest
+TESTS=b64test logtest vartest
 CRYPTO=src/crypto/secretkey.o src/crypto/symmetric.o 
 UTILS=src/utils/optparse.o src/utils/password.o src/utils/tools.o
 ACTIONS=src/actions/keygen.o src/actions/mount.o src/actions/create.o
@@ -17,7 +17,7 @@ OBJS=src/main.o \
 	 $(UTILS) \
 	 $(CRYPTO)
 
-DEPS := $(OBJS:.o=.d)
+DEPS := $(OBJS:.o=.d) src/test/b64test.d src/test/logtest.d src/test/vartest.d
 
 all: $(BIN)
 	
@@ -32,13 +32,13 @@ $(BIN): $(OBJS)
 test: $(TESTS)
 	
 b64test: src/test/b64test.cc
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(LDFLAGS) -MMD -MF $(<:.cc=.d) -o $@ $<
 
-testlog: src/test/testlog.cc
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+logtest: src/test/logtest.cc
+	$(CC) $(CFLAGS) $(LDFLAGS) -MMD -MF $(<:.cc=.d) -o $@ $<
 	
 vartest: src/test/vartest.cc
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(LDFLAGS) -MMD -MF $(<:.cc=.d) -o $@ $<
 	
 clean:
 	-rm $(OBJS) $(BIN) $(TESTS)
