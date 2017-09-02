@@ -34,7 +34,7 @@ test: $(TESTS)
 b64test: src/test/b64test.cc
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-testlog: src/test/testlog.cc
+logtest: src/test/logtest.cc
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 	
 vartest: src/test/vartest.cc
