@@ -23,8 +23,8 @@
 
 extern std::string prgname;
 
-static const char *hello_str = "Hello World!\n";
-static const char *hello_name = "hello";
+static char const *hello_str = "Hello World!\n";
+static char const *hello_name = "hello";
 static bool __debug = false;
 
 static void usage(void)
@@ -69,7 +69,7 @@ static void hush_getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *
 		fuse_reply_attr(req, &stbuf, 1.0);
 }
 
-static void hush_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
+static void hush_lookup(fuse_req_t req, fuse_ino_t parent, char const *name)
 {
 	struct fuse_entry_param e;
 
@@ -94,7 +94,7 @@ struct dirbuf {
 	size_t size;
 };
 
-static void dirbuf_add(fuse_req_t req, struct dirbuf *b, const char *name,
+static void dirbuf_add(fuse_req_t req, struct dirbuf *b, char const *name,
 					   fuse_ino_t ino)
 {
 	struct stat stbuf;
@@ -107,7 +107,7 @@ static void dirbuf_add(fuse_req_t req, struct dirbuf *b, const char *name,
 					  b->size);
 }
 
-static int reply_buf_limited(fuse_req_t req, const char *buf, size_t bufsize,
+static int reply_buf_limited(fuse_req_t req, char const *buf, size_t bufsize,
 							 off_t off, size_t maxsize)
 {
 	if (off < bufsize)
@@ -158,7 +158,7 @@ static void hush_read(fuse_req_t req, fuse_ino_t ino, size_t size,
 }
 
 // XXX
-static void hush_create(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode, struct fuse_file_info *fi)
+static void hush_create(fuse_req_t req, fuse_ino_t parent, char const *name, mode_t mode, struct fuse_file_info *fi)
 {
 	if (__debug)
 		std::cerr << "hush_create(req=x, parent=" << parent << ", name=\"" << 
@@ -218,7 +218,7 @@ int hush_mount(int main_argc, struct optparse *opts)
 	std::transform(args_in.begin(),
 				   args_in.end(),
 				   std::back_inserter(args_out),
-				   [] (const std::string &s) -> char * {
+				   [] (std::string const &s) -> char * {
 					return strdup(s.c_str());
 				   });
 

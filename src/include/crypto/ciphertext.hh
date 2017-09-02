@@ -10,14 +10,14 @@ namespace hush {
 		{
 		public:
 			CipherText() {};
-			void set(const unsigned char *n, uint64_t nlen, const unsigned char *d, uint64_t dlen)
+			void set(unsigned char const *n, uint64_t nlen, unsigned char const *d, uint64_t dlen)
 			{
 				nonce.assign(n, n+nlen);
 				data.assign(d, d+dlen);
 			};
 
-			const std::vector<unsigned char>& get_nonce() const { return nonce; };
-			const std::vector<unsigned char>& get_data() const { return data; };
+			std::vector<unsigned char> const & get_nonce() const { return nonce; };
+			std::vector<unsigned char> const & get_data() const { return data; };
 
 		private:
 			// Can use std::vector here for ciphertext -- don't need a

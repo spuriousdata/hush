@@ -12,7 +12,7 @@
 static slog::Log logger(LOGLEVEL);
 
 template<typename T>
-void split(const std::string &s, char delimiter, T result)
+void split(std::string const &s, char delimiter, T result)
 {
 	std::stringstream ss;
 	std::string item;
@@ -23,14 +23,14 @@ void split(const std::string &s, char delimiter, T result)
 	}
 }
 
-std::vector<std::string> split(const std::string &s, char delimiter)
+std::vector<std::string> split(std::string const &s, char delimiter)
 {
 	std::vector<std::string> elements;
 	split(s, delimiter, std::back_inserter(elements));
 	return elements;
 }
 
-void create_and_write(const std::string& name, const void *data, size_t datalen, int mode)
+void create_and_write(std::string const & name, void const *data, size_t datalen, int mode)
 {
 	int fd;
 	FILE *fp;

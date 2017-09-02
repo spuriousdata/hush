@@ -21,7 +21,7 @@ void SecretKey::set_key(unsigned char *k)
 	has_key = true;
 }
 
-void SecretKey::generate_key(const hush::secure::string& input)
+void SecretKey::generate_key(hush::secure::string const & input)
 {
 	if (!has_salt)
 		set_salt();

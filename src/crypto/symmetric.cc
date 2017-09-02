@@ -7,7 +7,7 @@
 
 using namespace hush::crypto;
 
-void Symmetric::encipher(CipherText& dest, const SecretKey& sk,
+void Symmetric::encipher(CipherText& dest, SecretKey const & sk,
 		hush::secure::vector<unsigned char>& message)
 {
 	unsigned char *data;

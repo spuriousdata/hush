@@ -15,12 +15,12 @@ namespace hush {
 		class Password
 		{
 		public:
-			void ask(const char *prompt, bool confirm=false, bool show_asterisk=true);
+			void ask(char const *prompt, bool confirm=false, bool show_asterisk=true);
 			hush::secure::string get(void) { return password; }
 		
 		private:
 			int getpwchar(void);
-			hush::secure::string obtain(const char *prompt, bool show_asterisk=true);
+			hush::secure::string obtain(char const *prompt, bool show_asterisk=true);
 			hush::secure::string password;
 		};
 	};

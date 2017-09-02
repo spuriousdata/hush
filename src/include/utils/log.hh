@@ -56,31 +56,11 @@ namespace slog {
 			}
 
 			template<typename...Us>
-			LogString(const char * s, Us... params)
+			LogString(char const * s, Us... params)
 			{
 				fmtstring = std::string(s);
 				args(params...);
 			}
-
-			/*
-			LogString & operator=(LogString const & s)
-			{
-				fmtstring = s.string();
-				return *this;
-			}
-
-			LogString & operator=(std::string const & s)
-			{
-				fmtstring = s;
-				return *this;
-			}
-
-			LogString & operator=(const char * s)
-			{
-				fmtstring = std::string(s);
-				return *this;
-			}
-			*/
 
 			template<typename T>
 			LogString arg(T i, int length=0, char pad=' ')
@@ -176,7 +156,7 @@ namespace slog {
 			 * Does the same as the last function except for char*
 			 */
 			template<typename...Us>
-			void collect_args(const char * first, Us... more)
+			void collect_args(char const * first, Us... more)
 			{
 				std::string s = first;
 				arg(s);
@@ -360,7 +340,7 @@ retnull:
 
 			/* End Insanity */
 
-			const std::string loglevel_to_string() const
+			std::string const loglevel_to_string() const
 			{
 				std::string s;
 				switch (loglevel) {
@@ -383,7 +363,7 @@ retnull:
 				return s;
 			}
 
-			const std::string localtime() const
+			std::string const localtime() const
 			{
 				auto now = std::chrono::system_clock::now();
 				std::time_t now_c = std::chrono::system_clock::to_time_t(now);
@@ -393,7 +373,7 @@ retnull:
 				return ss.str();
 			}
 
-			const std::string gmtime() const
+			std::string const gmtime() const
 			{
 				auto now = std::chrono::system_clock::now();
 				std::time_t now_c = std::chrono::system_clock::to_time_t(now);
@@ -403,7 +383,7 @@ retnull:
 				return ss.str();
 			}
 
-			const std::string full_log_string(LogString const & s) const
+			std::string const full_log_string(LogString const & s) const
 			{
 				LogString out = format;
 				bool msg_added = false;
@@ -451,4 +431,3 @@ retnull:
 };
 
 #endif /* LOG_HH_ */
-
