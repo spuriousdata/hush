@@ -17,7 +17,7 @@ OBJS=src/main.o \
 	 $(UTILS) \
 	 $(CRYPTO)
 
-DEPS := $(OBJS:.o=.d)
+DEPS := $(OBJS:.o=.d) src/test/b64test.d src/test/logtest.d src/test/vartest.d
 
 all: $(BIN)
 	
@@ -32,13 +32,13 @@ $(BIN): $(OBJS)
 test: $(TESTS)
 	
 b64test: src/test/b64test.cc
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) -MMD -MF $(<:.cc=.d) -c -o $@ $<
 
 logtest: src/test/logtest.cc
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) -MMD -MF $(<:.cc=.d) -c -o $@ $<
 	
 vartest: src/test/vartest.cc
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) -MMD -MF $(<:.cc=.d) -c -o $@ $<
 	
 clean:
 	-rm $(OBJS) $(BIN) $(TESTS)
