@@ -13,6 +13,7 @@
 
 #include "create.hh"
 #include "utils/optparse.h"
+#include "utils/log.hh"
 #include "fs.hh"
 
 static void usage();
@@ -73,8 +74,8 @@ static void write_superblock(int fd, uint64_t filelen)
 			.disk_size = filelen,
 			.total_inodes = num_inodes,
 			.total_blocks = num_blocks,
-			.inode_bitmap_blocks = (uint64_t)(num_inodes / 8),
-			.block_bitmap_blocks = (uint64_t)(num_blocks / 8),
+			.inode_bitmap_blocks = (uint64_t)((num_inodes / 8) / hush::fs::BLOCK_SIZE),
+			.block_bitmap_blocks = (uint64_t)((num_blocks / 8) / hush::fs::BLOCK_SIZE),
 		}
 	};
 
