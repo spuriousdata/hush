@@ -15,7 +15,6 @@ int main()
 		in.push_back(*it);
 
 	std::cout << b.encode(in) << std::endl;
-	//std::cout << b.pemify(b.encode(in), "TEST") << std::endl;
 	std::cout << b.unpemify(b.pemify(b.encode(in), "TEST")) << std::endl;
 	
 	std::cout << s << std::endl;

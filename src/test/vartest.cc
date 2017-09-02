@@ -35,9 +35,8 @@ void collect_args(T first, Us... more)
 int main()
 {
 	std::string foo = "bar";
-	char *bar = "baz";
 
-	collect_args(1, 2.5, 33, "foo", foo, bar);
+	collect_args(1, 2.5, 33, "foo", foo);
 
 	for (auto i : args)
 		std::cout << i << std::endl;
