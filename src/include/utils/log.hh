@@ -4,15 +4,29 @@
 #include <cstdarg>
 #include <cstdint>
 #include <iostream>
+#include <sstream>
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <chrono> // std::chrono*
+#include <iomanip> // std::put_time
 
-#define CHAR_TO_INT(x) ((x) - '0')
+#include <sys/types.h> // getpid getppid
+#include <unistd.h> // getpid getppid
+
+#define CHAR_TO_DIGIT(x) ((x) - '0')
 #define IS_DIGIT(x) ((x) >= '0' && (x) <= '9')
 
 namespace slog {
 	typedef enum { DEBUG, INFO, WARNING, ERROR, CRITICAL, } level;
+	typedef enum { 
+		LOGLEVEL, 
+		TIMESTAMP, 
+		UTCTIMESTAMP, 
+		PID, 
+		PPID, 
+		__MSG__,
+	} format_spec;
 
 	typedef struct {
 		std::string::iterator start;
@@ -20,6 +34,10 @@ namespace slog {
 		uint8_t replacement_number;
 	} replacement;
 
+	/*
+	 * This is kind of like a very small much less functional version of Qt's
+	 * QString.
+	 */
 	class LogString
 	{
 		public:
@@ -28,10 +46,43 @@ namespace slog {
 				fmtstring = s;
 			}
 
+			LogString(LogString const & s)
+			{
+				fmtstring = s.string();
+			}
+
+			LogString(const char * s)
+			{
+				fmtstring = std::string(s);
+			}
+
+			LogString & operator=(LogString const & s)
+			{
+				fmtstring = s.string();
+				return *this;
+			}
+
+			LogString & operator=(std::string const & s)
+			{
+				fmtstring = s;
+				return *this;
+			}
+
+			LogString & operator=(const char * s)
+			{
+				fmtstring = std::string(s);
+				return *this;
+			}
+
 			template<typename T>
 			LogString arg(T i, int length=0, char pad=' ')
 			{
 				return arg(std::to_string(i), length, pad);
+			}
+
+			LogString arg(LogString const &i, int length=0, char pad=' ')
+			{
+				return arg(i.string(), length, pad);
 			}
 
 			LogString arg(std::string const &i, int length=0, char pad=' ')
@@ -48,6 +99,17 @@ namespace slog {
 				} while (r != nullptr);
 
 				return *this;
+			}
+
+			LogString append(std::string const & s)
+			{
+				fmtstring += s;
+				return *this;
+			}
+
+			LogString append(LogString const & s)
+			{
+				return append(s.string());
 			}
 
 			std::string const & string() const
@@ -80,10 +142,10 @@ namespace slog {
 
 
 					if (IS_DIGIT(*it)) {
-						n = CHAR_TO_INT(*it);
+						n = CHAR_TO_DIGIT(*it);
 						it++;
 						if (IS_DIGIT(*it)) {
-							n = (n * 10) + CHAR_TO_INT(*it);
+							n = (n * 10) + CHAR_TO_DIGIT(*it);
 							it++;
 						}
 					} else {
@@ -129,62 +191,115 @@ retnull:
 	class Log 
 	{
 		public:
-			Log(level l)
+			Log(level l, bool ce=true, bool co=false) :
+				loglevel(l), log_to_cerr(ce), log_to_cout(co), format("")
 			{
-				loglevel = l;
+				set_format("[%1] [%2:%3] %4", TIMESTAMP, LOGLEVEL, PID, __MSG__);
 			}
 
+			/*
+			template<typename... Ts>
+			void set_format(LogString const & s, Ts...params)
+			{
+				set_format(s.string(), params...);
+			}
+			*/
 
 			template<typename... Ts>
-			void debug(std::string const & fmt, Ts... params)
+			void set_format(LogString const & s, Ts...params)
+			{
+				format = s; 
+				format_items.clear();
+				collect_formatter(params...);
+			}
+
+			template<typename T, typename...Us>
+			void collect_formatter(T first, Us... params)
+			{
+				format_items.push_back(first);
+				collect_formatter(params...);
+			}
+
+			/* See insanity below for description of why these collect_formatter
+			 * templates exist, etc...
+			 */
+			void collect_formatter() { return; }
+
+			/*
+			 * Variadic function templates. See private stuff below.
+			 */
+			template<typename... Ts>
+			void debug(LogString const & fmt, Ts... params)
 			{
 				if (loglevel == DEBUG)
 					log(fmt, params...);
 			}
 			
 			template<typename... Ts>
-			void info(std::string const & fmt, Ts... params)
+			void info(LogString const & fmt, Ts... params)
 			{
 				if (loglevel <= INFO)
 					log(fmt, params...);
 			}
 
 			template<typename... Ts>
-			void warn(std::string const & fmt, Ts... params)
+			void warn(LogString const & fmt, Ts... params)
 			{
 				if (loglevel <= WARNING)
 					log(fmt, params...);
 			}
 
 			template<typename... Ts>
-			void warning(std::string const & fmt, Ts... params)
+			void warning(LogString const & fmt, Ts... params)
 			{
 				warn(fmt, params...);
 			}
 
 			template<typename... Ts>
-			void error(std::string const & fmt, Ts... params)
+			void error(LogString const & fmt, Ts... params)
 			{
 				if (loglevel <= ERROR)
 					log(fmt, params...);
 			}
 			
 			template<typename... Ts>
-			void crit(std::string const & fmt, Ts... params)
+			void crit(LogString const & fmt, Ts... params)
 			{
 				if (loglevel <= CRITICAL)
 					log(fmt, params...);
 			}
 
 			template<typename... Ts>
-			void critical(std::string const & fmt, Ts... params)
+			void critical(LogString const & fmt, Ts... params)
 			{
 				crit(fmt, params...);
 			}
 
 		private:
+			bool log_to_cerr, log_to_cout;
 			level loglevel;
 			std::vector<std::string> args;
+			LogString format;
+			std::vector<format_spec> format_items;
+
+			/*
+			 * So this guy gets called first by the public functions. It takes
+			 * the params argument pack and calls the templatized collect_args
+			 * on it.
+			 */
+			template<typename... Ts>
+			void log(LogString const & fmt, Ts... params)
+			{
+				LogString s = fmt;
+
+				args.clear();
+				collect_args(params...); // start the recursion insanity.
+
+				for (auto i : args) 
+					s.arg(i);
+
+				output(s);
+			}
 
 			/*
 			 * All of this complete and utter insanity is because C++ now has
@@ -196,11 +311,25 @@ retnull:
 			 * I actually need a list-like thing, I just push them onto a vector
 			 * to call LogString.arg() on later.
 			 */
-			void collect_args()
+
+			/*
+			 * This one gets called for most of the parameter types, It takes
+			 * the first arg separately from the pack of the rest of them and
+			 * pushes it onto a vector. However, you can't call ::to_string on a
+			 * string or a char*, so we have to define two other overrides to
+			 * handle those.
+			 */
+			template<typename T, typename... Us>
+			void collect_args(T first, Us... more)
 			{
-				args.shrink_to_fit();
+				args.push_back(std::to_string(first));
+				collect_args(more...);
 			}
-			
+
+			/*
+			 * This guy handles the situation where we've arrived at a string
+			 * parameter type.
+			 */
 			template<typename...Us>
 			void collect_args(std::string & first, Us... more)
 			{
@@ -208,6 +337,9 @@ retnull:
 				collect_args(more...);
 			}
 			
+			/*
+			 * Does the same as the last function except for char*
+			 */
 			template<typename...Us>
 			void collect_args(const char * first, Us... more)
 			{
@@ -216,30 +348,104 @@ retnull:
 				collect_args(more...);
 			}
 
-			template<typename T, typename... Us>
-			void collect_args(T first, Us... more)
+			/*
+			 * And finally, we need this guy because c++ calls the function one
+			 * last time with no args when the parameter pack is empty... I
+			 * don't know why, it's all insane.
+			 */
+			void collect_args()
 			{
-				args.push_back(std::to_string(first));
-				collect_args(more...);
+				args.shrink_to_fit();
 			}
 
-			template<typename... Ts>
-			void log(std::string const & fmt, Ts... params)
+			/* End Insanity */
+
+			const std::string loglevel_to_string() const
 			{
-				LogString s = fmt;
-
-				args.clear();
-				collect_args(params...);
-
-				for (auto i : args) 
-					s.arg(i);
-
-				output(s);
+				std::string s;
+				switch (loglevel) {
+					case DEBUG:
+						s = "DEBUG";
+						break;
+					case INFO:
+						s = "INFO";
+						break;
+					case WARNING:
+						s = "WARNING";
+						break;
+					case ERROR:
+						s = "ERROR";
+						break;
+					case CRITICAL:
+						s = "CRITICAL";
+						break;
+				}
+				return s;
 			}
 
-			void output(LogString const &s) const
+			const std::string localtime() const
 			{
-				std::cerr << s.string() << std::endl;
+				auto now = std::chrono::system_clock::now();
+				std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+				std::stringstream ss;
+
+				ss << std::put_time(std::localtime(&now_c), "%FT%T");
+				return ss.str();
+			}
+
+			const std::string gmtime() const
+			{
+				auto now = std::chrono::system_clock::now();
+				std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+				std::stringstream ss;
+
+				ss << std::put_time(std::gmtime(&now_c), "%FT%Tz");
+				return ss.str();
+			}
+
+			const std::string full_log_string(LogString const & s) const
+			{
+				LogString out = format;
+				bool msg_added = false;
+
+				for (auto i : format_items) {
+					switch (i) {
+						case LOGLEVEL:
+							out.arg(loglevel_to_string());
+							break;
+						case TIMESTAMP:
+							out.arg(localtime());
+							break;
+						case UTCTIMESTAMP:
+							out.arg(gmtime());
+							break;
+						case PID:
+							out.arg(getpid());
+							break;
+						case PPID:
+							out.arg(getppid());
+							break;
+						case __MSG__:
+							out.arg(s);
+							msg_added = true;
+							break;
+					}
+				}
+
+				if (!msg_added)
+					out.append(" " + s.string());
+				return out.string();
+			}
+
+			void output(LogString const & s) const
+			{
+				std::string msg = full_log_string(s);
+
+				if (log_to_cerr)
+					std::cerr << msg << std::endl;
+
+				if (log_to_cout)
+					std::cout << msg << std::endl;
 			}
 	};
 };

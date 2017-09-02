@@ -10,5 +10,6 @@ int main()
 
 	logger.info("The value of x is %1 and the value of foo is '%2'. Remember x is %1", x, foo);
 
+
 	return 0;
 }
