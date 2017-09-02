@@ -21,7 +21,7 @@ namespace hush {
 		class B64 
 		{
 		public:
-			const R encode(const T& in) const
+			R const encode(T const & in) const
 			{
 				R out;
 				unsigned char a, b, c, oa, ob, oc, od;
@@ -62,7 +62,7 @@ namespace hush {
 				return out;
 			};
 
-			const T decode(const R& in) const
+			T const decode(R const & in) const
 			{
 				T out;
 				unsigned char a, b, c, d;
@@ -84,7 +84,7 @@ namespace hush {
 				return out;
 			};
 
-			const R encode(const hush::crypto::CipherText &ct) const
+			R const encode(hush::crypto::CipherText const & ct) const
 			{
 				R out;
 			
@@ -94,13 +94,13 @@ namespace hush {
 				return out;
 			};
 
-			const R pemify(const R& in, const char *keytype) const
+			R const pemify(R const & in, char const *keytype) const
 			{
 				std::string k = keytype;
 				return pemify(in, k);
 			}
 
-			const R pemify(const R& in, const std::string& keytype) const
+			R const pemify(R const & in, std::string const & keytype) const
 			{
 				R out;
 				int linelen = 0;
@@ -121,7 +121,7 @@ namespace hush {
 				return out;
 			};
 
-			const R unpemify(const R& in) const
+			R const unpemify(R const & in) const
 			{
 				R out;
 				size_t pos;
@@ -138,7 +138,7 @@ namespace hush {
 				return out.substr(0, out.find(marker));
 			};
 
-			const int decode_byte(char x) const
+			int const decode_byte(char x) const
 			{
 				if (BETWEEN(x, 'A', 'Z')) {
 					return x - 'A';
@@ -158,7 +158,7 @@ namespace hush {
 			};
 
 		private:
-			const char *b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+			char const *b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 		};
 	};
 };

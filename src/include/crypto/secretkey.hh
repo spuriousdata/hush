@@ -25,8 +25,8 @@ namespace hush {
 
 			void set_salt(unsigned char *s=nullptr);
 			void set_key(unsigned char *k);
-			const unsigned char *get_key() const { return key; };
-			void generate_key(const hush::secure::string& input);
+			unsigned char const *get_key() const { return key; };
+			void generate_key(hush::secure::string const & input);
 
 		private:
 			bool has_key = false;

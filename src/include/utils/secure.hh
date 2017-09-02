@@ -23,16 +23,16 @@ namespace hush {
 		public:
 			typedef T              value_type;
 			typedef T*             pointer;
-			typedef const T*       const_pointer;
+			typedef T const *      const_pointer;
 			typedef T&             reference;
-			typedef const T&       const_reference;
+			typedef T const &      const_reference;
 			typedef std::size_t    size_type;
 			typedef std::ptrdiff_t difference_type;
 
 			// constructors
 			SodiumAllocator() throw() { init(); };
-			SodiumAllocator(const SodiumAllocator&) throw() { init(); };
-			template <class U> SodiumAllocator(const SodiumAllocator<U>&) throw() { init(); };
+			SodiumAllocator(SodiumAllocator const &) throw() { init(); };
+			template <class U> SodiumAllocator(SodiumAllocator<U> const &) throw() { init(); };
 
 			// methods
 			template<class U> struct rebind { typedef SodiumAllocator<U> other; };
@@ -47,7 +47,7 @@ namespace hush {
 				return std::numeric_limits<std::size_t>::max() / sizeof(T);
 			};
 
-			pointer allocate(size_type num, const void* = 0)
+			pointer allocate(size_type num, void const * = 0)
 			{
 				pointer ret = (pointer)sodium_malloc(num * sizeof(T));
 				if (ret == NULL)
@@ -55,7 +55,7 @@ namespace hush {
 				return ret;
 			};
 
-			void construct(pointer p, const T& value)
+			void construct(pointer p, T const & value)
 			{
 				new((void*)p)T(value);
 			};
@@ -75,12 +75,12 @@ namespace hush {
 
 		// add comparators for allocator that evaluate as equal
 		template <class T1, class T2>
-		bool operator== (const SodiumAllocator<T1>&, const SodiumAllocator<T2>&) throw() {
+		bool operator== (SodiumAllocator<T1> const &, SodiumAllocator<T2> const &) throw() {
 			return true;
 		};
 
 		template <class T1, class T2>
-		bool operator!= (const SodiumAllocator<T1>&, const SodiumAllocator<T2>&) throw() {
+		bool operator!= (SodiumAllocator<T1> const &, SodiumAllocator<T2> const &) throw() {
 			return false;
 		};
 

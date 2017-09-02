@@ -11,7 +11,7 @@ namespace hush {
 		class Symmetric
 		{
 		public:
-			void encipher(CipherText& dest, const SecretKey& sk,
+			void encipher(CipherText& dest, SecretKey const & sk,
 					hush::secure::vector<unsigned char>& message);
 		};
 	};

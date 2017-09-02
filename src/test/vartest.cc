@@ -17,7 +17,7 @@ void collect_args(std::string & first, Us... more)
 }
 
 template<typename...Us>
-void collect_args(const char * first, Us... more)
+void collect_args(char const * first, Us... more)
 {
 	std::string s = first;
 	args.push_back(s);

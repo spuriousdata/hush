@@ -27,17 +27,17 @@ int Password::getpwchar(void) {
 	return ch;
 }
 
-void Password::ask(const char *prompt, bool confirm, bool show_asterisk)
+void Password::ask(char const *prompt, bool confirm, bool show_asterisk)
 {
 	password = obtain(prompt, show_asterisk);
 	if (confirm && (password != obtain("Confirm: ", show_asterisk)))
 		throw PasswordException("Passwords don't match!");
 }
 
-hush::secure::string Password::obtain(const char *prompt, bool show_asterisk)
+hush::secure::string Password::obtain(char const *prompt, bool show_asterisk)
 {
-	const char BACKSPACE=0x7F;
-	const char RETURN=0x0A;
+	char const BACKSPACE=0x7F;
+	char const RETURN=0x0A;
 	unsigned char ch=0;
 	hush::secure::string input;
 
