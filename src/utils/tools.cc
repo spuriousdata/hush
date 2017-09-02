@@ -5,7 +5,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <sstream>
 #include "utils/tools.hh"
 #include "utils/log.hh"
 #include "config.h"
@@ -37,7 +36,6 @@ void create_and_write(const std::string& name, const void *data, size_t datalen,
 	FILE *fp;
 	size_t wrote;
 	struct stat statbuf;
-	std::stringstream errmsg;
 	std::vector<std::string> parts;
 	std::string sofar;
 
@@ -54,23 +52,25 @@ void create_and_write(const std::string& name, const void *data, size_t datalen,
 	}
 
 	if ((fd = open(name.c_str(), O_CREAT | O_RDWR | O_EXCL, mode)) == -1) {
-		errmsg << "Error opening file " << name;
-		throw CreateAndWriteException(errmsg.str());
+		slog::LogString ls("Error opening file %1", name);
+		logger.error(ls);
+		throw CreateAndWriteException(ls.string());
 	}
 
 	if ((fp = fdopen(fd, "w")) == NULL) {
-		errmsg << "Error getting FILE pointer from fd " << fd;
-		throw CreateAndWriteException(errmsg.str());
+		slog::LogString ls("Error getting FILE pointer from fd %1", fd);
+		logger.error(ls);
+		throw CreateAndWriteException(ls.string());
 	}
 
 	if ((wrote = fwrite(data, 1, datalen, fp)) != datalen) {
-		errmsg << "Error writing data. Excepted to write " <<
-				datalen << " bytes, but only wrote " <<
-				wrote << " bytes.";
-		throw CreateAndWriteException(errmsg.str());
+		slog::LogString ls("Error writing data. Excepted to write %1 bytes, but only wrote %2 bytes.", datalen, wrote);
+		logger.error(ls);
+		throw CreateAndWriteException(ls.string());
 	}
 
 	if (fclose(fp) != 0) {
+		logger.error("Couldn't close file!");
 		throw CreateAndWriteException("Couldn't close file!");
 	}
 }

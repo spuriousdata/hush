@@ -41,21 +41,28 @@ namespace slog {
 	class LogString
 	{
 		public:
-			LogString(std::string const &s)
+			template<typename...Us>
+			LogString(std::string const &s, Us... params)
 			{
 				fmtstring = s;
+				args(params...);
 			}
 
-			LogString(LogString const & s)
+			template<typename...Us>
+			LogString(LogString const & s, Us... params)
 			{
 				fmtstring = s.string();
+				args(params...);
 			}
 
-			LogString(const char * s)
+			template<typename...Us>
+			LogString(const char * s, Us... params)
 			{
 				fmtstring = std::string(s);
+				args(params...);
 			}
 
+			/*
 			LogString & operator=(LogString const & s)
 			{
 				fmtstring = s.string();
@@ -73,6 +80,7 @@ namespace slog {
 				fmtstring = std::string(s);
 				return *this;
 			}
+			*/
 
 			template<typename T>
 			LogString arg(T i, int length=0, char pad=' ')
@@ -117,9 +125,75 @@ namespace slog {
 				return fmtstring;
 			}
 
+			// public interface to private insanity below
+			template<typename...Us>
+			void args(Us... params)
+			{
+				collect_args(params...);
+			}
+
 		private:
 			std::string fmtstring;
 			replacement rep;
+
+			/*
+			 * All of this complete and utter insanity is because C++ now has
+			 * the ability to have variadic function templates, BUT they don't
+			 * give you any way to iterate over the fucking arguments. So you
+			 * Have to do this stupid bullshit. Recursively calling the
+			 * same(ish) function and 'popping' off the first argument is the
+			 * only way to do something that resembles iterating the list. Since
+			 * I actually need a list-like thing, I just push them onto a vector
+			 * to call LogString.arg() on later.
+			 */
+
+			/*
+			 * This one gets called for most of the parameter types, It takes
+			 * the first arg separately from the pack of the rest of them and
+			 * then calls arg() on it. However, you can't call ::to_string on a
+			 * string or a char*, so we have to define two other overrides to
+			 * handle those.
+			 */
+			template<typename T, typename... Us>
+			void collect_args(T first, Us... more)
+			{
+				arg(std::to_string(first));
+				collect_args(more...);
+			}
+
+			/*
+			 * This guy handles the situation where we've arrived at a string
+			 * parameter type.
+			 */
+			template<typename...Us>
+			void collect_args(std::string & first, Us... more)
+			{
+				arg(first);
+				collect_args(more...);
+			}
+			
+			/*
+			 * Does the same as the last function except for char*
+			 */
+			template<typename...Us>
+			void collect_args(const char * first, Us... more)
+			{
+				std::string s = first;
+				arg(s);
+				collect_args(more...);
+			}
+
+			/*
+			 * And finally, we need this guy because c++ calls the function one
+			 * last time with no args when the parameter pack is empty... I
+			 * don't know why, it's all insane.
+			 */
+			void collect_args()
+			{
+				return;
+			}
+
+			// End Insanity
 
 			replacement * next(int repl=0)
 			{
@@ -197,14 +271,6 @@ retnull:
 				set_format("[%1] [%2:%3] %4", TIMESTAMP, LOGLEVEL, PID, __MSG__);
 			}
 
-			/*
-			template<typename... Ts>
-			void set_format(LogString const & s, Ts...params)
-			{
-				set_format(s.string(), params...);
-			}
-			*/
-
 			template<typename... Ts>
 			void set_format(LogString const & s, Ts...params)
 			{
@@ -220,8 +286,9 @@ retnull:
 				collect_formatter(params...);
 			}
 
-			/* See insanity below for description of why these collect_formatter
-			 * templates exist, etc...
+			/* 
+			 * See insanity in LogString for description of why these
+			 * collect_formatter templates exist, etc...
 			 */
 			void collect_formatter() { return; }
 
@@ -278,84 +345,17 @@ retnull:
 		private:
 			bool log_to_cerr, log_to_cout;
 			level loglevel;
-			std::vector<std::string> args;
 			LogString format;
 			std::vector<format_spec> format_items;
 
-			/*
-			 * So this guy gets called first by the public functions. It takes
-			 * the params argument pack and calls the templatized collect_args
-			 * on it.
-			 */
 			template<typename... Ts>
 			void log(LogString const & fmt, Ts... params)
 			{
 				LogString s = fmt;
 
-				args.clear();
-				collect_args(params...); // start the recursion insanity.
-
-				for (auto i : args) 
-					s.arg(i);
+				s.args(params...);
 
 				output(s);
-			}
-
-			/*
-			 * All of this complete and utter insanity is because C++ now has
-			 * the ability to have variadic function templates, BUT they don't
-			 * give you any way to iterate over the fucking arguments. So you
-			 * Have to do this stupid bullshit. Recursively calling the
-			 * same(ish) function and 'popping' off the first argument is the
-			 * only way to do something that resembles iterating the list. Since
-			 * I actually need a list-like thing, I just push them onto a vector
-			 * to call LogString.arg() on later.
-			 */
-
-			/*
-			 * This one gets called for most of the parameter types, It takes
-			 * the first arg separately from the pack of the rest of them and
-			 * pushes it onto a vector. However, you can't call ::to_string on a
-			 * string or a char*, so we have to define two other overrides to
-			 * handle those.
-			 */
-			template<typename T, typename... Us>
-			void collect_args(T first, Us... more)
-			{
-				args.push_back(std::to_string(first));
-				collect_args(more...);
-			}
-
-			/*
-			 * This guy handles the situation where we've arrived at a string
-			 * parameter type.
-			 */
-			template<typename...Us>
-			void collect_args(std::string & first, Us... more)
-			{
-				args.push_back(first);
-				collect_args(more...);
-			}
-			
-			/*
-			 * Does the same as the last function except for char*
-			 */
-			template<typename...Us>
-			void collect_args(const char * first, Us... more)
-			{
-				std::string s = first;
-				args.push_back(s);
-				collect_args(more...);
-			}
-
-			/*
-			 * And finally, we need this guy because c++ calls the function one
-			 * last time with no args when the parameter pack is empty... I
-			 * don't know why, it's all insane.
-			 */
-			void collect_args()
-			{
-				args.shrink_to_fit();
 			}
 
 			/* End Insanity */
