@@ -11,7 +11,5 @@
 
 #define HUSHFS_BLOCK_SIZE (4 * KB)
 
-#define LOGLEVEL slog::level::DEBUG
-
 #endif /* CONFIG_H_ */
 

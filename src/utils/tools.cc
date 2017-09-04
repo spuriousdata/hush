@@ -9,7 +9,7 @@
 #include "utils/log.hh"
 #include "config.h"
 
-static slog::Log logger(LOGLEVEL);
+static slog::Log logger(slog::DEBUG);
 
 template<typename T>
 void split(std::string const &s, char delimiter, T result)
