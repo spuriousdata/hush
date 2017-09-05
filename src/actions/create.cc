@@ -38,14 +38,16 @@ static void write_root_inode(int fd)
 
 	clock_gettime(CLOCK_REALTIME, &ts);
 	inode = {
-		.mode = S_IFDIR,
-		.inode_number = 1, // root directory inode is 1
-		.block_number = 1, // root datablock is also 1
-		.uid = getuid(),
-		.gid = getgid(),
-		.ctime = ts,
-		.mtime = ts,
-		.dir_children = 0,
+		.fields = {
+			.mode = S_IFDIR,
+			.inode_number = 1, // root directory inode is 1
+			.block_number = 1, // root datablock is also 1
+			.uid = getuid(),
+			.gid = getgid(),
+			.ctime = ts,
+			.mtime = ts,
+			.dir_children = 0,
+		},
 	};
 
 	bytes = write(fd, &inode, sizeof inode);

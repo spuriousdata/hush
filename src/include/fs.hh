@@ -12,6 +12,7 @@ namespace hush {
 		uint32_t const MAGIC = 0x48757348; // HusH
 		uint32_t const BLOCK_SIZE = HUSHFS_BLOCK_SIZE;
 		uint16_t const FILENAME_MAXLEN = 255;
+		uint16_t const INODE_ALIGN_SIZE = 256;
 
 		typedef struct {
 			uint32_t magic;
@@ -26,11 +27,11 @@ namespace hush {
 
 		typedef struct {
 			superblock_stats_t fields;
-			char padding[BLOCK_SIZE - sizeof(superblock_stats_t)];	
+			uint8_t padding[BLOCK_SIZE - sizeof(superblock_stats_t)];	
 		} superblock_t;
 
 		typedef struct {
-			unsigned char data[BLOCK_SIZE];
+			uint8_t data[BLOCK_SIZE];
 		} datablock_t;
 
 		// https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout#Overview
@@ -51,15 +52,20 @@ namespace hush {
 			struct timespec mtime;
 			struct timespec ctime;
 
-			datablock_t *direct[12];
-			indirect_block_t *first;
-			indirect_block_t **second;
-			indirect_block_t ***third;
+			uint64_t direct_ptr[12];
+			uint64_t single_indirect_ptr;
+			uint64_t double_indirect_ptr;
+			uint64_t triple_indirect_ptr;
 
 			union {
 				uint64_t file_size;
 				uint64_t dir_children;
 			};
+		} inode_data_t;
+
+		typedef struct {
+			inode_data_t fields;
+			uint8_t padding[INODE_ALIGN_SIZE - sizeof(inode_data_t)];
 		} inode_t;
 
 		typedef struct {
