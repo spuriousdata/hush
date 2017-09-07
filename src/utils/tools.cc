@@ -5,9 +5,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+
+#include "config.h"
+
 #include "utils/tools.hh"
 #include "utils/log.hh"
-#include "config.h"
 
 static slog::Log logger(slog::DEBUG);
 

@@ -9,13 +9,13 @@
 
 namespace hush {
 	namespace fs {
-		uint32_t const MAGIC = 0x48757348; // HusH
-		uint32_t const BLOCK_SIZE = HUSHFS_BLOCK_SIZE;
-		uint16_t const FILENAME_MAXLEN = 255;
-		uint16_t const INODE_ALIGN_SIZE = 256;
+		char     const *MAGIC            = "HusH";
+		uint32_t const  BLOCK_SIZE       = HUSHFS_BLOCK_SIZE;
+		uint16_t const  FILENAME_MAXLEN  = 255;
+		uint16_t const  INODE_ALIGN_SIZE = 256;
 
 		typedef struct {
-			uint32_t magic;
+			    char magic[4];
 			 uint8_t version;
 			uint32_t block_size;
 			uint64_t disk_size;
@@ -23,6 +23,10 @@ namespace hush {
 			uint64_t total_blocks;
 			uint64_t inode_bitmap_blocks;
 			uint64_t block_bitmap_blocks;
+			uint64_t inode_bitmap_offset;
+			uint64_t block_bitmap_offset;
+			uint64_t inode_table_offset;
+			uint64_t first_datablock;
 		} superblock_stats_t;
 
 		typedef struct {

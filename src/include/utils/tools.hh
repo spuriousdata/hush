@@ -2,6 +2,7 @@
 #define TOOLS_HH_
 
 #include <string>
+#include <cstdint>
 #include <stdexcept>
 #include <vector>
 
