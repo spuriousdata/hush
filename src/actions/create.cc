@@ -18,17 +18,18 @@
 #include "utils/tools.hh"
 #include "fs.hh"
 
-using slog::LogString;
+using LogString = slog::LogString;
+using Superblock = hush::fs::Superblock;
 
 static void usage();
 static uint64_t parse_size(std::string);
 static void format(int, uint64_t);
-static hush::fs::superblock_t * write_superblock(int, uint64_t);
-static void write_root_inode(int, hush::fs::superblock_t *);
-static void write_inode_bitmap(int, hush::fs::superblock_t *);
-static void write_block_bitmap(int, hush::fs::superblock_t *);
+static Superblock * write_superblock(int, uint64_t);
+static void write_root_inode(int, Superblock *);
+static void write_inode_bitmap(int, Superblock *);
+static void write_block_bitmap(int, Superblock *);
 
-static slog::Log logger(slog::DEBUG);
+static slog::Log logger(slog::LogLevel::DEBUG);
 
 extern std::string prgname;
 
@@ -39,13 +40,13 @@ inline uint64_t MAX(uint64_t a, uint64_t b)
 
 static void format(int fd, uint64_t filelen)
 {
-	hush::fs::superblock_t *sb = write_superblock(fd, filelen);
+	Superblock *sb = write_superblock(fd, filelen);
 	write_inode_bitmap(fd, sb);
 	write_block_bitmap(fd, sb);
 	write_root_inode(fd, sb);
 }
 
-static hush::fs::superblock_t * write_superblock(int fd, uint64_t filelen)
+static Superblock * write_superblock(int fd, uint64_t filelen)
 {
 	size_t bytes;
 	uint64_t num_blocks = (uint64_t)(filelen / hush::fs::BLOCK_SIZE);
@@ -54,7 +55,7 @@ static hush::fs::superblock_t * write_superblock(int fd, uint64_t filelen)
 	uint64_t bbb = MAX(1, (uint64_t)((num_blocks / 8) / hush::fs::BLOCK_SIZE));
 	uint64_t inode_table_blocks = (uint64_t)(num_inodes / hush::fs::BLOCK_SIZE) + 1;
 	uint64_t start_bitmap_block = 1;
-	hush::fs::superblock_t *sb = new hush::fs::superblock_t;
+	Superblock *sb = new Superblock;
 
 	*sb = {
 		.fields = {
@@ -104,9 +105,9 @@ static hush::fs::superblock_t * write_superblock(int fd, uint64_t filelen)
 			start_bitmap_block + ibb + bbb + inode_table_blocks
 	);
 
-	bytes = write(fd, sb, sizeof(hush::fs::superblock_t));
+	bytes = write(fd, sb, sizeof(Superblock));
 
-	if (bytes != sizeof(hush::fs::superblock_t)) {
+	if (bytes != sizeof(Superblock)) {
 		LogString ls("Error writing superblock: Wrote %1 bytes, expected %2", bytes, sizeof sb);
 		logger.critical(ls.string());
 		throw ls.string();
@@ -116,7 +117,7 @@ static hush::fs::superblock_t * write_superblock(int fd, uint64_t filelen)
 	return sb;
 }
 
-static void write_inode_bitmap(int fd, hush::fs::superblock_t *sb)
+static void write_inode_bitmap(int fd, Superblock *sb)
 {
 	uint8_t *map;
 	uint64_t j = 0, size = sb->fields.inode_bitmap_blocks * hush::fs::BLOCK_SIZE;
@@ -136,7 +137,7 @@ static void write_inode_bitmap(int fd, hush::fs::superblock_t *sb)
 	logger.info("Wrote inode bitmap, size: %1", size);
 }
 
-static void write_block_bitmap(int fd, hush::fs::superblock_t *sb)
+static void write_block_bitmap(int fd, Superblock *sb)
 {
 	uint8_t *map;
 	uint64_t size = sb->fields.block_bitmap_blocks * hush::fs::BLOCK_SIZE;
@@ -148,11 +149,11 @@ static void write_block_bitmap(int fd, hush::fs::superblock_t *sb)
 	logger.info("Wrote block bitmap, size: %1", size);
 }
 
-static void write_root_inode(int fd, hush::fs::superblock_t *sb)
+static void write_root_inode(int fd, Superblock *sb)
 {
 	struct timespec ts;
 	size_t bytes;
-	hush::fs::inode_t inode;
+	hush::fs::Inode inode;
 
 	clock_gettime(CLOCK_REALTIME, &ts);
 	inode = {
@@ -275,7 +276,7 @@ int hush_create(struct optparse *opts)
 	if (flock(fd, LOCK_EX) != 0) {
 		ret = 1;
 		std::cerr << "Error obtaining exclusive lock on file " << filename << std::endl;
-		goto bye;
+		goto close_and_exit;
 	}
 
 	try {
@@ -299,7 +300,7 @@ int hush_create(struct optparse *opts)
 	}
 
 
-prebye:
+close_and_exit:
 	close(fd);
 
 bye:

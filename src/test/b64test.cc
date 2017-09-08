@@ -11,7 +11,7 @@ int main()
 
 	s = "This is a test of the emergency broadcast system.";
 
-	for (auto it=s.begin(); it != s.end(); it++)
+	for (auto it=s.cbegin(); it != s.cend(); it++)
 		in.push_back(*it);
 
 	std::cout << b.encode(in) << std::endl;
@@ -20,6 +20,6 @@ int main()
 	std::cout << s << std::endl;
 
 	out = b.decode(b.encode(in));
-	s.assign(out.begin(), out.end());
+	s.assign(out.cbegin(), out.cend());
 	std::cout << s << std::endl;
 }

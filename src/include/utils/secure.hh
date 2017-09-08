@@ -85,8 +85,10 @@ namespace hush {
 		};
 
 		// Secure Types
-		typedef std::basic_string<char, std::char_traits<char>, SodiumAllocator<char>> string;
-		template<typename T> using vector = std::vector<T, SodiumAllocator<T>>;
+		using string = std::basic_string<char, std::char_traits<char>, SodiumAllocator<char>>;
+
+		template<typename T> 
+		using vector = std::vector<T, SodiumAllocator<T>>;
 	};
 };
 

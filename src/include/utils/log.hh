@@ -18,21 +18,21 @@
 #define IS_DIGIT(x) ((x) >= '0' && (x) <= '9')
 
 namespace slog {
-	typedef enum { DEBUG, INFO, WARNING, ERROR, CRITICAL, } level;
-	typedef enum { 
+	enum class LogLevel { DEBUG, INFO, WARNING, ERROR, CRITICAL, };
+	enum class FormatSpec { 
 		LOGLEVEL, 
 		TIMESTAMP, 
 		UTCTIMESTAMP, 
 		PID, 
 		PPID, 
 		__MSG__,
-	} format_spec;
+	};
 
-	typedef struct {
+	using Replacement = struct {
 		std::string::iterator start;
 		std::string::iterator end;
 		uint8_t replacement_number;
-	} replacement;
+	};
 
 	/*
 	 * This is kind of like a very small much less functional version of Qt's
@@ -75,7 +75,7 @@ namespace slog {
 
 			LogString arg(std::string const &i, int length=0, char pad=' ')
 			{
-				replacement *r;
+				Replacement *r;
 				std::string out = i;
 
 				format(out, length, pad);
@@ -114,7 +114,7 @@ namespace slog {
 
 		private:
 			std::string fmtstring;
-			replacement rep;
+			Replacement rep;
 
 			/*
 			 * All of this complete and utter insanity is because C++ now has
@@ -175,7 +175,7 @@ namespace slog {
 
 			// End Insanity
 
-			replacement * next(int repl=0)
+			Replacement * next(int repl=0)
 			{
 				auto it = fmtstring.begin();
 				char n;
@@ -245,10 +245,12 @@ retnull:
 	class Log 
 	{
 		public:
-			Log(level l, bool ce=true, bool co=false) :
-				loglevel(l), log_to_cerr(ce), log_to_cout(co), format("")
+			Log(LogLevel l, bool ce=true, bool co=false) :
+				log_to_cerr(ce), log_to_cout(co), loglevel(l), format("")
 			{
-				set_format("[%1] [%2:%3] %4", TIMESTAMP, LOGLEVEL, PID, __MSG__);
+				set_format("[%1] [%2:%3] %4", FormatSpec::TIMESTAMP, 
+						FormatSpec::LOGLEVEL, FormatSpec::PID, 
+						FormatSpec::__MSG__);
 			}
 
 			template<typename... Ts>
@@ -278,21 +280,21 @@ retnull:
 			template<typename... Ts>
 			void debug(LogString const & fmt, Ts... params)
 			{
-				if (loglevel == DEBUG)
+				if (loglevel == LogLevel::DEBUG)
 					log(fmt, params...);
 			}
 			
 			template<typename... Ts>
 			void info(LogString const & fmt, Ts... params)
 			{
-				if (loglevel <= INFO)
+				if (loglevel <= LogLevel::INFO)
 					log(fmt, params...);
 			}
 
 			template<typename... Ts>
 			void warn(LogString const & fmt, Ts... params)
 			{
-				if (loglevel <= WARNING)
+				if (loglevel <= LogLevel::WARNING)
 					log(fmt, params...);
 			}
 
@@ -305,14 +307,14 @@ retnull:
 			template<typename... Ts>
 			void error(LogString const & fmt, Ts... params)
 			{
-				if (loglevel <= ERROR)
+				if (loglevel <= LogLevel::ERROR)
 					log(fmt, params...);
 			}
 			
 			template<typename... Ts>
 			void crit(LogString const & fmt, Ts... params)
 			{
-				if (loglevel <= CRITICAL)
+				if (loglevel <= LogLevel::CRITICAL)
 					log(fmt, params...);
 			}
 
@@ -324,9 +326,9 @@ retnull:
 
 		private:
 			bool log_to_cerr, log_to_cout;
-			level loglevel;
+			LogLevel loglevel;
 			LogString format;
-			std::vector<format_spec> format_items;
+			std::vector<FormatSpec> format_items;
 
 			template<typename... Ts>
 			void log(LogString const & fmt, Ts... params)
@@ -344,19 +346,19 @@ retnull:
 			{
 				std::string s;
 				switch (loglevel) {
-					case DEBUG:
+					case LogLevel::DEBUG:
 						s = "DEBUG";
 						break;
-					case INFO:
+					case LogLevel::INFO:
 						s = "INFO";
 						break;
-					case WARNING:
+					case LogLevel::WARNING:
 						s = "WARNING";
 						break;
-					case ERROR:
+					case LogLevel::ERROR:
 						s = "ERROR";
 						break;
-					case CRITICAL:
+					case LogLevel::CRITICAL:
 						s = "CRITICAL";
 						break;
 				}
@@ -390,22 +392,22 @@ retnull:
 
 				for (auto i : format_items) {
 					switch (i) {
-						case LOGLEVEL:
+						case FormatSpec::LOGLEVEL:
 							out.arg(loglevel_to_string());
 							break;
-						case TIMESTAMP:
+						case FormatSpec::TIMESTAMP:
 							out.arg(localtime());
 							break;
-						case UTCTIMESTAMP:
+						case FormatSpec::UTCTIMESTAMP:
 							out.arg(gmtime());
 							break;
-						case PID:
+						case FormatSpec::PID:
 							out.arg(getpid());
 							break;
-						case PPID:
+						case FormatSpec::PPID:
 							out.arg(getppid());
 							break;
-						case __MSG__:
+						case FormatSpec::__MSG__:
 							out.arg(s);
 							msg_added = true;
 							break;

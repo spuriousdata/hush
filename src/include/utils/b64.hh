@@ -27,7 +27,7 @@ namespace hush {
 				unsigned char a, b, c, oa, ob, oc, od;
 				int pad = 0;
 			
-				for (auto it = in.begin(); it != in.end() && pad == 0; it += 3) {
+				for (auto it = in.cbegin(); it != in.cend() && pad == 0; it += 3) {
 					a = *it;
 					if ((it+1) == in.end()) {
 						b = c = 0;
@@ -67,7 +67,7 @@ namespace hush {
 				T out;
 				unsigned char a, b, c, d;
 
-				for (auto it = in.begin(); it != in.end(); it += 4) {
+				for (auto it = in.cbegin(); it != in.cend(); it += 4) {
 					a = decode_byte(*it);
 					b = decode_byte(*(it+1));
 					c = decode_byte(*(it+2));
@@ -108,7 +108,7 @@ namespace hush {
 				std::transform(kt.begin(), kt.end(), kt.begin(), ::toupper); 
 			
 				out = "-----BEGIN SODIUM "+ kt + " KEY-----\r\n";
-				for (auto it = in.begin(); it != in.end(); it++) {
+				for (auto it = in.cbegin(); it != in.cend(); it++) {
 					out.push_back(*it);
 					if (++linelen == 64) {
 						linelen = 0;

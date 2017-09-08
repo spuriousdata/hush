@@ -215,8 +215,8 @@ int hush_mount(int main_argc, struct optparse *opts)
 	for (int i = opts->optind; i < main_argc; i++)
 		args_in.push_back(opts->argv[i]);
 
-	std::transform(args_in.begin(),
-				   args_in.end(),
+	std::transform(args_in.cbegin(),
+				   args_in.cend(),
 				   std::back_inserter(args_out),
 				   [] (std::string const &s) -> char * {
 					return strdup(s.c_str());

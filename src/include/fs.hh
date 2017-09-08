@@ -14,10 +14,11 @@ namespace hush {
 		uint16_t const  FILENAME_MAXLEN  = 255;
 		uint16_t const  INODE_ALIGN_SIZE = 256;
 
-		typedef struct {
+		using SuperblockStats = struct alignas(8) { // align on 8-byte boundary 
 			    char magic[4];
-			 uint8_t version;
+			uint32_t version;
 			uint32_t block_size;
+			uint32_t padding; // unused -- needed for alignment
 			uint64_t disk_size;
 			uint64_t total_inodes;
 			uint64_t total_blocks;
@@ -27,26 +28,26 @@ namespace hush {
 			uint64_t block_bitmap_offset;
 			uint64_t inode_table_offset;
 			uint64_t first_datablock;
-		} superblock_stats_t;
+		};
 
-		typedef struct {
-			superblock_stats_t fields;
-			uint8_t padding[BLOCK_SIZE - sizeof(superblock_stats_t)];	
-		} superblock_t;
+		using Superblock = struct {
+			SuperblockStats fields;
+			uint8_t padding[BLOCK_SIZE - sizeof(SuperblockStats)];	
+		};
 
-		typedef struct {
+		using Datablock = struct {
 			uint8_t data[BLOCK_SIZE];
-		} datablock_t;
+		};
 
 		// https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout#Overview
-		typedef struct __indirect_block {
+		using IndirectBlock = struct __indirect_block {
 			union {
-				datablock_t *blocks[BLOCK_SIZE / sizeof(datablock_t *)];
-				struct __indirect_block *i_blocks[BLOCK_SIZE / sizeof(datablock_t *)];
+				Datablock *blocks[BLOCK_SIZE / sizeof(Datablock *)];
+				struct __indirect_block *i_blocks[BLOCK_SIZE / sizeof(Datablock *)];
 			};
-		} indirect_block_t;
+		};
 
-		typedef struct {
+		using InodeData = struct {
 			mode_t mode;
 			uint64_t inode_number;
 			uint64_t block_number;
@@ -65,21 +66,21 @@ namespace hush {
 				uint64_t file_size;
 				uint64_t dir_children;
 			};
-		} inode_data_t;
+		};
 
-		typedef struct {
-			inode_data_t fields;
-			uint8_t padding[INODE_ALIGN_SIZE - sizeof(inode_data_t)];
-		} inode_t;
+		using Inode = struct {
+			InodeData fields;
+			uint8_t padding[INODE_ALIGN_SIZE - sizeof(InodeData)];
+		};
 
-		typedef struct {
+		using InodeTable = struct {
 			uint64_t used_inodes;
-		} inode_table_t;
+		};
 
-		typedef struct {
+		using DirEnt = struct {
 			char name[FILENAME_MAXLEN];
 			uint64_t i_no;
-		} dirent_t;
+		};
 	};
 };
 

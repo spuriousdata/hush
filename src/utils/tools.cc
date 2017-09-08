@@ -11,7 +11,7 @@
 #include "utils/tools.hh"
 #include "utils/log.hh"
 
-static slog::Log logger(slog::DEBUG);
+static slog::Log logger(slog::LogLevel::DEBUG);
 
 template<typename T>
 void split(std::string const &s, char delimiter, T result)

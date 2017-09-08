@@ -3,7 +3,7 @@ CFLAGS=-Wall -Isrc/include $(shell pkg-config --cflags fuse libsodium) -std=c++1
 LDFLAGS=$(shell pkg-config --libs libsodium) $(shell pkg-config --libs fuse) -lstdc++ -ldl
 
 # DEBUG
-CFLAGS+=-g -DLOGURU_DEBUG_LOGGING
+CFLAGS+=-g
 # DEBUG
 
 BIN=hush
