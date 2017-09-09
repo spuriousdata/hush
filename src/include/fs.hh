@@ -13,17 +13,26 @@ namespace hush {
 		uint32_t const  BLOCK_SIZE       = HUSHFS_BLOCK_SIZE;
 		uint16_t const  FILENAME_MAXLEN  = 255;
 		uint16_t const  INODE_ALIGN_SIZE = 256;
+		uint16_t const  INODES_PER_BLOCK = (uint64_t)(BLOCK_SIZE / INODE_ALIGN_SIZE);
 
-		using SuperblockStats = struct alignas(8) { // align on 8-byte boundary 
+		/*
+		 * alignas(8) doesn't actually do anything since this is the default
+		 * alignment of this struct. It's just there to point out the 8-byte
+		 * alignment.
+		 */
+		using SuperblockStats = struct alignas(8) {
 			    char magic[4];
 			uint32_t version;
 			uint32_t block_size;
-			uint32_t padding; // unused -- needed for alignment
+			// unsed
+			uint32_t padding;
 			uint64_t disk_size;
 			uint64_t total_inodes;
 			uint64_t total_blocks;
 			uint64_t inode_bitmap_blocks;
 			uint64_t block_bitmap_blocks;
+			uint64_t inode_table_blocks;
+			uint64_t inodes_per_block;
 			uint64_t inode_bitmap_offset;
 			uint64_t block_bitmap_offset;
 			uint64_t inode_table_offset;
@@ -73,8 +82,12 @@ namespace hush {
 			uint8_t padding[INODE_ALIGN_SIZE - sizeof(InodeData)];
 		};
 
+		using InodeTableBlock = struct {
+			Inode inodes[BLOCK_SIZE / sizeof(Inode)];
+		};
+
 		using InodeTable = struct {
-			uint64_t used_inodes;
+			InodeTableBlock blocks[];
 		};
 
 		using DirEnt = struct {

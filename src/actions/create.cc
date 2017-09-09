@@ -28,6 +28,7 @@ static Superblock * write_superblock(int, uint64_t);
 static void write_root_inode(int, Superblock *);
 static void write_inode_bitmap(int, Superblock *);
 static void write_block_bitmap(int, Superblock *);
+static void write_inode_table(int, Superblock *);
 
 static slog::Log logger(slog::LogLevel::DEBUG);
 
@@ -43,19 +44,21 @@ static void format(int fd, uint64_t filelen)
 	Superblock *sb = write_superblock(fd, filelen);
 	write_inode_bitmap(fd, sb);
 	write_block_bitmap(fd, sb);
+	write_inode_table(fd, sb);
 	write_root_inode(fd, sb);
 }
 
 static Superblock * write_superblock(int fd, uint64_t filelen)
 {
-	size_t bytes;
+	size_t bytes = 0;
 	uint64_t num_blocks = (uint64_t)(filelen / hush::fs::BLOCK_SIZE);
 	uint64_t num_inodes = num_blocks;
+	uint64_t inodes_per_block = (uint64_t)(hush::fs::BLOCK_SIZE / sizeof(hush::fs::Inode));
 	uint64_t ibb = MAX(1, (uint64_t)((num_inodes / 8) / hush::fs::BLOCK_SIZE));
 	uint64_t bbb = MAX(1, (uint64_t)((num_blocks / 8) / hush::fs::BLOCK_SIZE));
-	uint64_t inode_table_blocks = (uint64_t)(num_inodes / hush::fs::BLOCK_SIZE) + 1;
+	uint64_t inode_table_blocks = (uint64_t)(num_inodes / inodes_per_block) + 1;
 	uint64_t start_bitmap_block = 1;
-	Superblock *sb = new Superblock;
+	Superblock *sb = new Superblock();
 
 	*sb = {
 		.fields = {
@@ -66,6 +69,8 @@ static Superblock * write_superblock(int fd, uint64_t filelen)
 			.total_blocks        = num_blocks,
 			.inode_bitmap_blocks = ibb,
 			.block_bitmap_blocks = bbb,
+			.inode_table_blocks  = inode_table_blocks,
+			.inodes_per_block    = inodes_per_block,
 			.inode_bitmap_offset = start_bitmap_block,
 			.block_bitmap_offset = start_bitmap_block + ibb,
 			.inode_table_offset  = start_bitmap_block + ibb + bbb,
@@ -86,10 +91,12 @@ static Superblock * write_superblock(int fd, uint64_t filelen)
 			"\t\t.total_blocks        = %5\n"
 			"\t\t.inode_bitmap_blocks = %6\n"
 			"\t\t.block_bitmap_blocks = %7\n"
-			"\t\t.inode_bitmap_offset = %8\n"
-			"\t\t.block_bitmap_offset = %9\n"
-			"\t\t.inode_table_offset  = %10\n"
-			"\t\t.first_datablock     = %11\n"
+			"\t\t.inode_table_blocks  = %8\n"
+			"\t\t.inodes_per_block    = %9\n"
+			"\t\t.inode_bitmap_offset = %10\n"
+			"\t\t.block_bitmap_offset = %11\n"
+			"\t\t.inode_table_offset  = %12\n"
+			"\t\t.first_datablock     = %13\n"
 			"\t}\n"
 			"}", 
 			HUSHFS_VERSION,
@@ -99,6 +106,8 @@ static Superblock * write_superblock(int fd, uint64_t filelen)
 			num_blocks,
 			ibb,
 			bbb,
+			inode_table_blocks,
+			inodes_per_block,
 			start_bitmap_block,
 			start_bitmap_block + ibb,
 			start_bitmap_block + ibb + bbb,
@@ -119,12 +128,10 @@ static Superblock * write_superblock(int fd, uint64_t filelen)
 
 static void write_inode_bitmap(int fd, Superblock *sb)
 {
-	uint8_t *map;
 	uint64_t j = 0, size = sb->fields.inode_bitmap_blocks * hush::fs::BLOCK_SIZE;
-
-	map = new uint8_t[size];
-
+	uint8_t *map = new uint8_t[size]();
 	uint8_t byte = map[j];
+
 	for (uint64_t i = 0; i < sb->fields.first_datablock; i++) {
 		if (i != 0 && (i % 8) == 0) {
 			j++;
@@ -142,18 +149,32 @@ static void write_block_bitmap(int fd, Superblock *sb)
 	uint8_t *map;
 	uint64_t size = sb->fields.block_bitmap_blocks * hush::fs::BLOCK_SIZE;
 
-	map = new uint8_t[size];
+	map = new uint8_t[size]();
 
 	// no inodes are used right now, so we write an empty map
 	write(fd, map, size); 
 	logger.info("Wrote block bitmap, size: %1", size);
 }
 
+static void write_inode_table(int fd, Superblock *sb)
+{
+	hush::fs::InodeTableBlock block = {};
+
+	logger.debug("Writing inode table");
+	// the inodes are all initially empty so we just write zeros here
+	for (int i = 0; i < sb->fields.inode_table_blocks; i++) {
+		write(fd, &block, sizeof(block));
+	}
+
+	size_t tell = lseek(fd, 0, SEEK_CUR);
+	logger.debug("tell = %1 block = %2", tell, tell / hush::fs::BLOCK_SIZE);
+}
+
 static void write_root_inode(int fd, Superblock *sb)
 {
-	struct timespec ts;
+	struct timespec ts = {};
 	size_t bytes;
-	hush::fs::Inode inode;
+	hush::fs::Inode inode = {};
 
 	clock_gettime(CLOCK_REALTIME, &ts);
 	inode = {
@@ -163,8 +184,9 @@ static void write_root_inode(int fd, Superblock *sb)
 			.block_number = 1, // root datablock is also 1
 			.uid          = getuid(), // these should shadow your local user/group
 			.gid          = getgid(),
-			.ctime        = ts,
+			.atime        = ts,
 			.mtime        = ts,
+			.ctime        = ts,
 			.dir_children = 0,
 		},
 	};
@@ -182,7 +204,7 @@ static void write_root_inode(int fd, Superblock *sb)
 
 static void usage()
 {
-	std::cerr << "Usage " << prgname << " -k .path/to/keyfile -s N[k|g|m] secret.img" << std::endl;
+	std::cerr << "Usage " << prgname << " [-S] -k .path/to/keyfile -s N[k|g|m] secret.img" << std::endl;
 }
 
 static uint64_t parse_size(std::string s)
@@ -287,13 +309,16 @@ int hush_create(struct optparse *opts)
 	}
 
 	if (no_sparse) {
-		tmp = new char[1024];
-		curpos = lseek(fd, 0, SEEK_CUR);
+		logger.info("Not creating sparse file");
+		char empty[8192] = {};
 		while ((curpos = lseek(fd, 0, SEEK_CUR)) < filelen) {
-			write(fd, tmp, filelen-curpos);
+			uint64_t sz = filelen-curpos;
+
+			sz = sz > 8192 ? 8192 : sz;
+			write(fd, empty, sz);
 		}
-		delete[] tmp;
 	} else {
+		logger.info("Creating sparse file");
 		// create sparse file
 		lseek(fd, filelen-1, SEEK_SET);
 		write(fd, &nullbyte, 1);
