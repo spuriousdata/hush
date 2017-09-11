@@ -118,8 +118,8 @@ static Superblock * write_superblock(int fd, uint64_t filelen)
 
 	if (bytes != sizeof(Superblock)) {
 		LogString ls("Error writing superblock: Wrote %1 bytes, expected %2", bytes, sizeof sb);
-		logger.critical(ls.string());
-		throw ls.string();
+		logger.critical(ls.str());
+		throw ls.str();
 	}
 
 	logger.info("Wrote superblock, size: %1", sizeof(sb));
@@ -196,7 +196,7 @@ static void write_root_inode(int fd, Superblock *sb)
 	if (bytes != sizeof inode) {
 		LogString ls("Error writing root inode: Wrote %1 bytes, expected %2 ", bytes, sizeof inode);
 		logger.critical(ls);
-		throw ls.string();
+		throw ls.str();
 	}
 
 	logger.info("Wrote root inode, size: %1", sizeof(inode));

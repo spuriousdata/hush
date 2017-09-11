@@ -24,8 +24,7 @@ namespace hush {
 			    char magic[4];
 			uint32_t version;
 			uint32_t block_size;
-			// unsed
-			uint32_t padding;
+			uint32_t padding; // unsed
 			uint64_t disk_size;
 			uint64_t total_inodes;
 			uint64_t total_blocks;

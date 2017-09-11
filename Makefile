@@ -7,7 +7,7 @@ CFLAGS+=-g
 # DEBUG
 
 BIN=hush
-TESTS=b64test logtest vartest
+TESTBIN=runtests
 CRYPTO=src/crypto/secretkey.o src/crypto/symmetric.o 
 UTILS=src/utils/optparse.o src/utils/password.o src/utils/tools.o
 ACTIONS=src/actions/keygen.o src/actions/mount.o src/actions/create.o
@@ -17,7 +17,11 @@ OBJS=src/main.o \
 	 $(UTILS) \
 	 $(CRYPTO)
 
-DEPS := $(OBJS:.o=.d) src/test/b64test.d src/test/logtest.d src/test/vartest.d
+TESTOBJS=src/test/main.o \
+		 src/test/log.o \
+		 src/test/b64.o
+
+DEPS := $(OBJS:.o=.d) $(TESTOBJS:.o=.d)
 
 all: $(BIN)
 	
@@ -29,19 +33,14 @@ $(BIN): $(OBJS)
 %.o: %.cc
 	$(CC) $(CFLAGS) -MMD -MF $(<:.cc=.d) -c -o $@ $<
 
-test: $(TESTS)
+test: $(TESTBIN)
+	./runtests
 	
-b64test: src/test/b64test.cc
-	$(CC) $(CFLAGS) $(LDFLAGS) -MMD -MF $(<:.cc=.d) -o $@ $<
-
-logtest: src/test/logtest.cc
-	$(CC) $(CFLAGS) $(LDFLAGS) -MMD -MF $(<:.cc=.d) -o $@ $<
-	
-vartest: src/test/vartest.cc
-	$(CC) $(CFLAGS) $(LDFLAGS) -MMD -MF $(<:.cc=.d) -o $@ $<
+$(TESTBIN): $(TESTOBJS)
+	$(CC) $(LDFLAGS) -o $@ $(TESTOBJS)
 	
 clean:
-	-rm $(OBJS) $(BIN) $(TESTS)
+	-rm $(OBJS) $(BIN) $(TESTOBJS) $(TESTBIN)
 
 distclean: clean
 	-find . -type f -name \*.o -o -name \*.d | xargs rm

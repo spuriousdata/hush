@@ -2,12 +2,14 @@
 #define LOG_HH_
 
 #include <cstdarg>
+#include <stdexcept>
 #include <cstdint>
 #include <iostream>
 #include <sstream>
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <list>
 #include <chrono> // std::chrono*
 #include <iomanip> // std::put_time
 
@@ -18,6 +20,11 @@
 #define IS_DIGIT(x) ((x) >= '0' && (x) <= '9')
 
 namespace slog {
+	class LogStringError : public std::runtime_error
+	{
+		using std::runtime_error::runtime_error;
+		using std::runtime_error::what;
+	};
 	enum class LogLevel { DEBUG, INFO, WARNING, ERROR, CRITICAL, };
 	enum class FormatSpec { 
 		LOGLEVEL, 
@@ -51,7 +58,7 @@ namespace slog {
 			template<typename...Us>
 			LogString(LogString const & s, Us... params)
 			{
-				fmtstring = s.string();
+				fmtstring = s.str();
 				args(params...);
 			}
 
@@ -63,19 +70,19 @@ namespace slog {
 			}
 
 			template<typename T>
-			LogString arg(T i, int length=0, char pad=' ')
+			LogString & arg(T i, int length=0, char pad=' ')
 			{
 				return arg(std::to_string(i), length, pad);
 			}
 
-			LogString arg(LogString const &i, int length=0, char pad=' ')
+			LogString & arg(LogString const &i, int length=0, char pad=' ')
 			{
-				return arg(i.string(), length, pad);
+				return arg(i.str(), length, pad);
 			}
 
-			LogString arg(std::string const &i, int length=0, char pad=' ')
+			LogString & arg(std::string const &i, int length=0, char pad=' ')
 			{
-				Replacement *r;
+				Replacement * r;
 				std::string out = i;
 
 				format(out, length, pad);
@@ -97,10 +104,10 @@ namespace slog {
 
 			LogString append(LogString const & s)
 			{
-				return append(s.string());
+				return append(s.str());
 			}
 
-			std::string const & string() const
+			std::string const & str() const
 			{
 				return fmtstring;
 			}
@@ -112,9 +119,25 @@ namespace slog {
 				collect_args(params...);
 			}
 
+			bool empty() const noexcept
+			{
+				return fmtstring.empty();
+			}
+
+			bool operator==(LogString const & other) const noexcept
+			{
+				return str() == other.str();
+			}
+
+			bool operator==(std::string const & other) const noexcept
+			{
+				return str() == other;
+			}
+
 		private:
 			std::string fmtstring;
-			Replacement rep;
+			std::list<Replacement*> found_reps;
+			bool is_parsed = false;
 
 			/*
 			 * All of this complete and utter insanity is because C++ now has
@@ -174,23 +197,55 @@ namespace slog {
 			}
 
 			// End Insanity
-
+			
 			Replacement * next(int repl=0)
 			{
-				auto it = fmtstring.begin();
+				Replacement * r;
+
+				if (!is_parsed)
+					parse();
+
+				if (found_reps.empty())
+					return nullptr;
+
+				r = found_reps.front();
+
+				if (repl != 0 && r->replacement_number != repl)
+					return nullptr;
+
+				found_reps.pop_front();
+				return r;
+			}
+
+			void add_rep(Replacement const & r)
+			{
+				Replacement * rep = new Replacement {};
+				rep->start = r.start;
+				rep->end = r.end;
+				rep->replacement_number = r.replacement_number;
+
+				found_reps.push_back(rep);
+			}
+
+			void parse()
+			{
+				Replacement rep;
 				char n;
+				auto it = fmtstring.begin();
+
+				found_reps.clear();
 
 				while (it != fmtstring.end()) {
 					while (it != fmtstring.end() && (*it) != '%')
 						it++;
 
 					if (it == fmtstring.end())
-						goto retnull;
+						break;
 
 					rep.start = it;
 
 					if ((++it) == fmtstring.end())
-						goto retnull;
+						break;
 					else if (*it == '%') // double %
 						continue;
 
@@ -206,15 +261,15 @@ namespace slog {
 						continue; // not a valid substitution
 					}
 
-					if (repl != 0 and n != repl)
-						continue;
-					
 					rep.end = it;
 					rep.replacement_number = n;
-					return &rep;	
+
+					add_rep(rep);
 				}
-retnull:
-				return nullptr;
+
+				found_reps.sort([](Replacement* a, Replacement* b) {
+					return (a->replacement_number < b->replacement_number);
+				});
 			}
 
 			std::string & format(std::string &s, int length, char pad)
@@ -245,8 +300,8 @@ retnull:
 	class Log 
 	{
 		public:
-			Log(LogLevel l, bool ce=true, bool co=false) :
-				log_to_cerr(ce), log_to_cout(co), loglevel(l), format("")
+			Log(LogLevel l, bool ce=true, std::ostream & o = std::cout) :
+				log_to_cerr(ce), loglevel(l), format(""), stream(o)
 			{
 				set_format("[%1] [%2:%3] %4", FormatSpec::TIMESTAMP, 
 						FormatSpec::LOGLEVEL, FormatSpec::PID, 
@@ -325,9 +380,10 @@ retnull:
 			}
 
 		private:
-			bool log_to_cerr, log_to_cout;
+			bool log_to_cerr;
 			LogLevel loglevel;
 			LogString format;
+			std::ostream & stream;
 			std::vector<FormatSpec> format_items;
 
 			template<typename... Ts>
@@ -339,8 +395,6 @@ retnull:
 
 				output(s);
 			}
-
-			/* End Insanity */
 
 			std::string const loglevel_to_string() const
 			{
@@ -414,20 +468,23 @@ retnull:
 					}
 				}
 
-				if (!msg_added)
-					out.append(" " + s.string());
-				return out.string();
+				if (!msg_added) {
+					if (!out.empty())
+						out.append(" " + s.str());
+					else
+						out = s.str();
+				}
+				return out.str();
 			}
 
 			void output(LogString const & s) const
 			{
 				std::string msg = full_log_string(s);
 
+				stream << msg << std::endl;
+
 				if (log_to_cerr)
 					std::cerr << msg << std::endl;
-
-				if (log_to_cout)
-					std::cout << msg << std::endl;
 			}
 	};
 };
