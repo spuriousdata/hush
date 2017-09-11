@@ -35,7 +35,7 @@ b64test: src/test/b64test.cc
 	$(CC) $(CFLAGS) $(LDFLAGS) -MMD -MF $(<:.cc=.d) -o $@ $<
 
 logtest: src/test/logtest.cc
-	$(CC) $(CFLAGS) $(LDFLAGS) -MMD -MF $(<:.cc=.d) -o $@ $<
+	$(CC) $(CFLAGS) -L/usr/lib/debug/usr/lib $(LDFLAGS) -MMD -MF $(<:.cc=.d) -o $@ $<
 	
 vartest: src/test/vartest.cc
 	$(CC) $(CFLAGS) $(LDFLAGS) -MMD -MF $(<:.cc=.d) -o $@ $<

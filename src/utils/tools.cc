@@ -56,19 +56,19 @@ void create_and_write(std::string const & name, void const *data, size_t datalen
 	if ((fd = open(name.c_str(), O_CREAT | O_RDWR | O_EXCL, mode)) == -1) {
 		slog::LogString ls("Error opening file %1", name);
 		logger.error(ls);
-		throw CreateAndWriteException(ls.string());
+		throw CreateAndWriteException(ls.str());
 	}
 
 	if ((fp = fdopen(fd, "w")) == NULL) {
 		slog::LogString ls("Error getting FILE pointer from fd %1", fd);
 		logger.error(ls);
-		throw CreateAndWriteException(ls.string());
+		throw CreateAndWriteException(ls.str());
 	}
 
 	if ((wrote = fwrite(data, 1, datalen, fp)) != datalen) {
 		slog::LogString ls("Error writing data. Excepted to write %1 bytes, but only wrote %2 bytes.", datalen, wrote);
 		logger.error(ls);
-		throw CreateAndWriteException(ls.string());
+		throw CreateAndWriteException(ls.str());
 	}
 
 	if (fclose(fp) != 0) {
