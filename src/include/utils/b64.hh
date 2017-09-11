@@ -1,6 +1,7 @@
 #ifndef B64_HH_
 #define B64_HH_
 
+#include <cstdint>
 #include <stdexcept>
 #include <algorithm> // transform, toupper
 #include "crypto/ciphertext.hh"
@@ -24,7 +25,7 @@ namespace hush {
 			R const encode(T const & in) const
 			{
 				R out;
-				unsigned char a, b, c, oa, ob, oc, od;
+				uint8_t a, b, c, oa, ob, oc, od;
 				int pad = 0;
 			
 				for (auto it = in.cbegin(); it != in.cend() && pad == 0; it += 3) {
@@ -65,7 +66,8 @@ namespace hush {
 			T const decode(R const & in) const
 			{
 				T out;
-				unsigned char a, b, c, d;
+				typename T::value_type item;
+				int8_t a, b, c, d;
 
 				for (auto it = in.cbegin(); it != in.cend(); it += 4) {
 					a = decode_byte(*it);
@@ -76,8 +78,13 @@ namespace hush {
 					if (c == -1)
 						c = 0;
 
-					out.push_back((a << 2) | ((b & 0x30) >> 4));
-					out.push_back(((b & 0x0F) << 4) | ((c & 0x3C) >> 2));
+					item = (a << 2) | ((b & 0x30) >> 4);
+					out.push_back(item);
+
+					item = ((b & 0x0F) << 4) | ((c & 0x3C) >> 2);
+					if (item != 0)
+						out.push_back(item);
+
 					if (d != -1)
 						out.push_back(((c & 0x03) << 6) | d);
 				}
@@ -93,6 +100,12 @@ namespace hush {
 			
 				return out;
 			};
+
+			R const encode(R const & in) const
+			{
+				T vec(in.begin(), in.end());
+				return encode(vec);
+			}
 
 			R const pemify(R const & in, char const *keytype) const
 			{

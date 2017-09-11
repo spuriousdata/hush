@@ -1,8 +1,6 @@
 #include <iostream>
 #include <string>
 #include "utils/log.hh"
-
-#define CATCH_CONFIG_MAIN
 #include "test/catch.hpp"
 
 
