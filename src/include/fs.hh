@@ -9,22 +9,14 @@
 
 namespace hush {
 	namespace fs {
-		char     const *MAGIC            = "HusH";
-		uint32_t const  BLOCK_SIZE       = HUSHFS_BLOCK_SIZE;
-		uint16_t const  FILENAME_MAXLEN  = 255;
-		uint16_t const  INODE_ALIGN_SIZE = 256;
-		uint16_t const  INODES_PER_BLOCK = (uint64_t)(BLOCK_SIZE / INODE_ALIGN_SIZE);
 
-		/*
-		 * alignas(8) doesn't actually do anything since this is the default
-		 * alignment of this struct. It's just there to point out the 8-byte
-		 * alignment.
-		 */
+		enum class FileType : uint32_t { File, Directory };
+
 		using SuperblockStats = struct alignas(8) {
 			    char magic[4];
-			uint32_t version;
+			uint8_t  version;
+			    char unused[7];
 			uint32_t block_size;
-			uint32_t padding; // unsed
 			uint64_t disk_size;
 			uint64_t total_inodes;
 			uint64_t total_blocks;
@@ -38,32 +30,32 @@ namespace hush {
 			uint64_t first_datablock;
 		};
 
-		using Superblock = struct {
+		using Superblock = struct alignas(8) {
 			SuperblockStats fields;
-			uint8_t padding[BLOCK_SIZE - sizeof(SuperblockStats)];	
+			uint8_t padding[HUSHFS_BLOCK_SIZE - sizeof(SuperblockStats)];	
 		};
 
-		using Datablock = struct {
-			uint8_t data[BLOCK_SIZE];
+		using Datablock = struct alignas(8) {
+			uint8_t data[HUSHFS_BLOCK_SIZE];
 		};
 
 		// https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout#Overview
-		using IndirectBlock = struct __indirect_block {
+		using IndirectBlock = struct alignas(8) __indirect_block {
 			union {
-				Datablock *blocks[BLOCK_SIZE / sizeof(Datablock *)];
-				struct __indirect_block *i_blocks[BLOCK_SIZE / sizeof(Datablock *)];
+				Datablock *blocks[HUSHFS_BLOCK_SIZE / sizeof(Datablock *)];
+				struct __indirect_block *i_blocks[HUSHFS_BLOCK_SIZE / sizeof(Datablock *)];
 			};
 		};
 
-		using InodeData = struct {
-			mode_t mode;
+		using InodeData = struct alignas(8) {
+			mode_t mode; //uint32
+			uid_t uid; //uint32
+			gid_t gid; //uint32
+			FileType type; //uint32
 			uint64_t inode_number;
-			uint64_t block_number;
-			uid_t uid;
-			gid_t gid;
-			struct timespec atime;
-			struct timespec mtime;
-			struct timespec ctime;
+			struct timespec atime; //uint64_t[2]
+			struct timespec mtime; //uint64_t[2]
+			struct timespec ctime; //uint64_t[2]
 
 			uint64_t direct_ptr[12];
 			uint64_t single_indirect_ptr;
@@ -76,21 +68,22 @@ namespace hush {
 			};
 		};
 
-		using Inode = struct {
+		using Inode = struct alignas(8) {
 			InodeData fields;
-			uint8_t padding[INODE_ALIGN_SIZE - sizeof(InodeData)];
+			uint8_t padding[HUSHFS_INODE_ALIGN_SIZE - sizeof(InodeData)];
 		};
 
-		using InodeTableBlock = struct {
-			Inode inodes[BLOCK_SIZE / sizeof(Inode)];
+		using InodeTableBlock = struct alignas(8) {
+			Inode inodes[HUSHFS_BLOCK_SIZE / sizeof(Inode)];
 		};
 
-		using InodeTable = struct {
+		using InodeTable = struct alignas(8) {
 			InodeTableBlock blocks[];
 		};
 
-		using DirEnt = struct {
-			char name[FILENAME_MAXLEN];
+		// total length 256
+		using DirEnt = struct alignas(8) {
+			char name[HUSHFS_FILENAME_MAXLEN];
 			uint64_t i_no;
 		};
 	};

@@ -5,11 +5,18 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "config.h"
 
 #include "utils/tools.hh"
 #include "utils/log.hh"
+#include "utils/mountinfo.hh"
+
+using hush::fs::FileType;
+using hush::fs::Inode;
+using hush::fs::InodeTable;
+using hush::fs::MountInfo;
 
 static slog::Log logger(slog::LogLevel::DEBUG);
 
@@ -75,4 +82,48 @@ void create_and_write(std::string const & name, void const *data, size_t datalen
 		logger.error("Couldn't close file!");
 		throw CreateAndWriteException("Couldn't close file!");
 	}
+}
+
+void write_data(int fd, void const * buf, off_t from, uint64_t len, bool error_seek)
+{
+	off_t oldpos = lseek(fd, 0, SEEK_CUR);
+	ssize_t wrote = 0; 
+
+
+	if (error_seek && oldpos != from) {
+		slog::LogString ls("Seek error. Specified start location %1 is not the same as natural location of fd %2", from, oldpos);
+		logger.error(ls);
+		throw ls.str();
+	}
+
+	lseek(fd, from, SEEK_SET);
+
+	if ((wrote = write(fd, buf, len)) != len) {
+		slog::LogString ls("Error writing data, excpected to write %1 bytes, but wrote %2 bytes.", len, wrote);
+		logger.error(ls);
+		throw ls.str();
+	}
+}
+
+void write_block(int fd, void const * buf, off_t from, bool error_seek)
+{
+	write_data(fd, buf, from, HUSHFS_BLOCK_SIZE, error_seek);
+}
+
+void write_inode(int fd, Superblock const *sb, std::string const & name, 
+		FileType typ, mode_t umask, void const * buf, uint64_t i_no)
+{
+	struct timespec ts = {};
+	Inode *inode = new Inode {};
+
+	clock_gettime(CLOCK_REALTIME, &ts);
+
+	inode->fields.mode = (typ == FileType::File) ? (0666 & ~umask) : (0777 & ~umask);
+	inode->fields.uid = getuid();
+	inode->fields.gid = getgid();
+	inode->fields.type = typ;
+	inode->fields.inode_number = MountInfo::get_instance(fd).next_available_inode();
+	inode->fields.atime = ts;
+	inode->fields.mtime = ts;
+	inode->fields.ctime = ts;
 }

@@ -46,19 +46,18 @@ static void format(int fd, uint64_t filelen)
 	write_inode_bitmap(fd, sb);
 	write_block_bitmap(fd, sb);
 	write_inode_table(fd, sb);
-	write_root_inode(fd, sb);
+	//write_root_inode(fd, sb);
 
 	sb.reset();
 }
 
 static std::shared_ptr<Superblock> write_superblock(int fd, uint64_t filelen)
 {
-	size_t bytes = 0;
-	uint64_t num_blocks = (uint64_t)(filelen / hush::fs::BLOCK_SIZE);
+	uint64_t num_blocks = (uint64_t)(filelen / HUSHFS_BLOCK_SIZE);
 	uint64_t num_inodes = num_blocks;
-	uint64_t inodes_per_block = (uint64_t)(hush::fs::BLOCK_SIZE / sizeof(hush::fs::Inode));
-	uint64_t ibb = MAX(1, (uint64_t)((num_inodes / 8) / hush::fs::BLOCK_SIZE));
-	uint64_t bbb = MAX(1, (uint64_t)((num_blocks / 8) / hush::fs::BLOCK_SIZE));
+	uint64_t inodes_per_block = (uint64_t)(HUSHFS_BLOCK_SIZE / sizeof(hush::fs::Inode));
+	uint64_t ibb = MAX(1, (uint64_t)((num_inodes / 8) / HUSHFS_BLOCK_SIZE));
+	uint64_t bbb = MAX(1, (uint64_t)((num_blocks / 8) / HUSHFS_BLOCK_SIZE));
 	uint64_t inode_table_blocks = (uint64_t)(num_inodes / inodes_per_block) + 1;
 	uint64_t start_bitmap_block = 1;
 	auto sb = std::make_shared<Superblock>();
@@ -66,7 +65,7 @@ static std::shared_ptr<Superblock> write_superblock(int fd, uint64_t filelen)
 	*sb = {
 		.fields = {
 			.version             = HUSHFS_VERSION,
-			.block_size          = hush::fs::BLOCK_SIZE,
+			.block_size          = HUSHFS_BLOCK_SIZE,
 			.disk_size           = filelen,
 			.total_inodes        = num_inodes,
 			.total_blocks        = num_blocks,
@@ -81,7 +80,7 @@ static std::shared_ptr<Superblock> write_superblock(int fd, uint64_t filelen)
 		}
 	};
 
-	memcpy(&sb->fields.magic, hush::fs::MAGIC, 4);
+	memcpy(&sb->fields.magic, HUSHFS_MAGIC, 4);
 
 	logger.debug("Creating superblock\n"
 			"sb = {\n"
@@ -103,7 +102,7 @@ static std::shared_ptr<Superblock> write_superblock(int fd, uint64_t filelen)
 			"\t}\n"
 			"}", 
 			HUSHFS_VERSION,
-			hush::fs::BLOCK_SIZE,
+			HUSHFS_BLOCK_SIZE,
 			filelen,
 			num_inodes,
 			num_blocks,
@@ -117,13 +116,7 @@ static std::shared_ptr<Superblock> write_superblock(int fd, uint64_t filelen)
 			start_bitmap_block + ibb + bbb + inode_table_blocks
 	);
 
-	bytes = write(fd, sb.get(), sizeof(Superblock));
-
-	if (bytes != sizeof(Superblock)) {
-		LogString ls("Error writing superblock: Wrote %1 bytes, expected %2", bytes, sizeof sb);
-		logger.critical(ls.str());
-		throw ls.str();
-	}
+	write_block(fd, sb.get(), 0);
 
 	logger.info("Wrote superblock, size: %1", sizeof(sb));
 	return sb;
@@ -131,8 +124,22 @@ static std::shared_ptr<Superblock> write_superblock(int fd, uint64_t filelen)
 
 static void write_inode_bitmap(int fd, std::shared_ptr<Superblock> const & sb)
 {
-	uint64_t j = 0, size = sb->fields.inode_bitmap_blocks * hush::fs::BLOCK_SIZE;
-	uint8_t *map = new uint8_t[size]();
+	uint8_t *map;
+	uint64_t size = sb->fields.inode_bitmap_blocks * HUSHFS_BLOCK_SIZE;
+
+	map = new uint8_t[size] {};
+
+	// no inodes are used right now, so we write an empty map
+	write_data(fd, map, sb->fields.inode_bitmap_offset * HUSHFS_BLOCK_SIZE, size, true);
+	logger.info("Wrote inode bitmap, size: %1", size);
+
+	delete[] map;
+}
+
+static void write_block_bitmap(int fd, std::shared_ptr<Superblock> const & sb)
+{
+	uint64_t j = 0, size = sb->fields.block_bitmap_blocks * HUSHFS_BLOCK_SIZE;
+	uint8_t *map = new uint8_t[size] {};
 	uint8_t byte = map[j];
 
 	for (uint64_t i = 0; i < sb->fields.first_datablock; i++) {
@@ -143,21 +150,8 @@ static void write_inode_bitmap(int fd, std::shared_ptr<Superblock> const & sb)
 		byte = byte | (0x80 >> i);
 	}
 
-	write(fd, map, size);
-	logger.info("Wrote inode bitmap, size: %1", size);
+	write_data(fd, map, sb->fields.block_bitmap_offset * HUSHFS_BLOCK_SIZE, size, true);
 
-	delete[] map;
-}
-
-static void write_block_bitmap(int fd, std::shared_ptr<Superblock> const & sb)
-{
-	uint8_t *map;
-	uint64_t size = sb->fields.block_bitmap_blocks * hush::fs::BLOCK_SIZE;
-
-	map = new uint8_t[size]();
-
-	// no inodes are used right now, so we write an empty map
-	write(fd, map, size); 
 	logger.info("Wrote block bitmap, size: %1", size);
 
 	delete[] map;
@@ -166,29 +160,28 @@ static void write_block_bitmap(int fd, std::shared_ptr<Superblock> const & sb)
 static void write_inode_table(int fd, std::shared_ptr<Superblock> const & sb)
 {
 	hush::fs::InodeTableBlock block = {};
+	uint64_t startblock = sb->fields.inode_table_offset;
 
-	logger.debug("Writing inode table");
+	logger.debug("Writing inode table: %1 blocks", sb->fields.inode_table_blocks);
 	// the inodes are all initially empty so we just write zeros here
 	for (int i = 0; i < sb->fields.inode_table_blocks; i++) {
-		write(fd, &block, sizeof(block));
+		write_block(fd, &block, (startblock++) * HUSHFS_BLOCK_SIZE, true);
 	}
 
 	size_t tell = lseek(fd, 0, SEEK_CUR);
-	logger.debug("tell = %1 block = %2", tell, tell / hush::fs::BLOCK_SIZE);
+	logger.debug("tell = %1 block = %2", tell, tell / HUSHFS_BLOCK_SIZE);
 }
 
 static void write_root_inode(int fd, std::shared_ptr<Superblock> const & sb)
 {
 	struct timespec ts = {};
 	size_t bytes;
-	hush::fs::Inode inode = {};
 
 	clock_gettime(CLOCK_REALTIME, &ts);
-	inode = {
+	hush::fs::Inode inode = {
 		.fields = {
 			.mode         = S_IFDIR,
 			.inode_number = 1, // root directory inode is 1
-			.block_number = 1, // root datablock is also 1
 			.uid          = getuid(), // these should shadow your local user/group
 			.gid          = getgid(),
 			.atime        = ts,

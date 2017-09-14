@@ -8,14 +8,17 @@ CFLAGS+=-g
 
 BIN=hush
 TESTBIN=runtests
-CRYPTO=src/crypto/secretkey.o src/crypto/symmetric.o 
-UTILS=src/utils/optparse.o src/utils/password.o src/utils/tools.o
-ACTIONS=src/actions/keygen.o src/actions/mount.o src/actions/create.o
 
 OBJS=src/main.o \
-	 $(ACTIONS) \
-	 $(UTILS) \
-	 $(CRYPTO)
+	 src/actions/keygen.o \
+	 src/actions/mount.o \
+	 src/actions/create.o \
+     src/utils/optparse.o \
+	 src/utils/password.o \
+	 src/utils/tools.o \
+	 src/utils/mountinfo.o \
+	 src/crypto/secretkey.o \
+	 src/crypto/symmetric.o 
 
 TESTOBJS=src/test/main.o \
 		 src/test/log.o \

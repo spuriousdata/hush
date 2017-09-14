@@ -300,8 +300,8 @@ namespace slog {
 	class Log 
 	{
 		public:
-			Log(LogLevel l, bool ce=true, std::ostream & o = std::cout) :
-				log_to_cerr(ce), loglevel(l), format(""), stream(o)
+			Log(LogLevel l, std::ostream & o = std::cerr) :
+				loglevel(l), format(""), stream(o)
 			{
 				set_format("[%1] [%2:%3] %4", FormatSpec::TIMESTAMP, 
 						FormatSpec::LOGLEVEL, FormatSpec::PID, 
@@ -380,7 +380,6 @@ namespace slog {
 			}
 
 		private:
-			bool log_to_cerr;
 			LogLevel loglevel;
 			LogString format;
 			std::ostream & stream;
@@ -482,9 +481,6 @@ namespace slog {
 				std::string msg = full_log_string(s);
 
 				stream << msg << std::endl;
-
-				if (log_to_cerr)
-					std::cerr << msg << std::endl;
 			}
 	};
 };

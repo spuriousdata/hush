@@ -3,10 +3,11 @@
 #include "utils/log.hh"
 #include "test/catch.hpp"
 
+using Catch::Matchers::StartsWith;
 
 TEST_CASE( "Log Levels", "[slog::Log]" ) {
 	std::ostringstream os;
-	slog::Log logger(slog::LogLevel::INFO, false, os);
+	slog::Log logger(slog::LogLevel::INFO, os);
 
 	logger.set_format("");
 
@@ -23,7 +24,7 @@ TEST_CASE( "Log Levels", "[slog::Log]" ) {
 TEST_CASE( "Interpolation passthrough slog::Log -> slog::LogString", "[slog::Log]" ) {
 
 	std::ostringstream os;
-	slog::Log logger(slog::LogLevel::DEBUG, false, os);
+	slog::Log logger(slog::LogLevel::DEBUG, os);
 
 	logger.set_format("");
 
@@ -34,13 +35,13 @@ TEST_CASE( "Interpolation passthrough slog::Log -> slog::LogString", "[slog::Log
 
 	SECTION( "float interpolation" ) {
 		logger.info("%1", 3.14159);
-		REQUIRE(os.str() == "3.141590\n");
+		REQUIRE_THAT(os.str(), StartsWith("3.14159"));
 	}
 
 	SECTION( "double interpolation") {
 		double x = 3.14159;
 		logger.info("%1", x);
-		REQUIRE(os.str() == "3.141590\n");
+		REQUIRE_THAT(os.str(), StartsWith("3.14159"));
 	}
 
 	SECTION( "integer interpolation" ) {
@@ -80,11 +81,39 @@ TEST_CASE( "Placeholders", "[slog::LogString]" ) {
 		REQUIRE(ls.str() == "1 23 45");
 	}
 
-	SECTION( "Out of order - single digit" ) {
+	SECTION( "Out of order - single digit - variadic call" ) {
 		REQUIRE(slog::LogString("%1 %9 %3", 1, 23, 45).str() == "1 45 23");
 	}
 
-	SECTION( "Out of order - double digit" ) {
+	SECTION( "Out of order - single digit - sequential call" ) {
+		slog::LogString ls("%1 %9 %3");
+		ls.arg(1);
+		ls.arg(23);
+		ls.arg(45);
+		REQUIRE(ls.str() == "1 45 23");
+	}
+
+	SECTION( "Out of order - single digit - chain call" ) {
+		slog::LogString ls("%1 %9 %3");
+		ls.arg(1).arg(23).arg(45);
+		REQUIRE(ls.str() == "1 45 23");
+	}
+
+	SECTION( "Out of order - double digit - variadic call" ) {
 		REQUIRE(slog::LogString("%12 %19 %3", 1, 23, 45).str() == "23 45 1");
+	}
+
+	SECTION( "Out of order - double digit - sequential call" ) {
+		slog::LogString ls("%12 %19 %3");
+		ls.arg(1);
+		ls.arg(23);
+		ls.arg(45);
+		REQUIRE(ls.str() == "23 45 1");
+	}
+
+	SECTION( "Out of order - double digit - chain call" ) {
+		slog::LogString ls("%12 %19 %3");
+		ls.arg(1).arg(23).arg(45);
+		REQUIRE(ls.str() == "23 45 1");
 	}
 }
